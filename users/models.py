@@ -1,3 +1,66 @@
+# users/models.py
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
+from phonenumber_field.modelfields import PhoneNumberField
 
-# Create your models here.
+
+class UserManager(BaseUserManager):
+    def create_user(self, email, password=None, **extra_fields):
+        if not email:
+            raise ValueError('The Email field must be set')
+        email = self.normalize_email(email)
+        user = self.model(email=email, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, email, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        return self.create_user(email, password, **extra_fields)
+
+
+class User(AbstractBaseUser, PermissionsMixin):
+    GENDER_CHOICES = [
+        (1, 'female'),
+        (2, 'male'),
+    ]
+
+    USER_TYPE_CHOICES = [
+        (1, 'free'),
+        (2, 'pro'),
+    ]
+
+    LEVEL_CHOICES = [
+        (1, 'basic'),
+        (2, 'advanced'),
+    ]
+
+    email = models.EmailField(unique=True)
+    username = models.CharField(max_length=150, unique=True)
+    firstname = models.CharField(max_length=150)
+    lastname = models.CharField(max_length=150)
+    gender = models.IntegerField(choices=GENDER_CHOICES)
+    phone_number = PhoneNumberField()
+    birth_date = models.DateField()
+    type = models.IntegerField(choices=USER_TYPE_CHOICES, default=1)
+    level = models.IntegerField(choices=LEVEL_CHOICES, default=1)
+
+    is_active = models.BooleanField(default=True)
+    is_confirmed = models.BooleanField(default=False)
+    is_staff = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    expire_date = models.DateField(null=True, blank=True)
+
+    objects = UserManager()
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username', 'firstname', 'lastname', 'phone_number']
+
+    class Meta:
+        verbose_name = 'User'
+        verbose_name_plural = 'Users'
+
+        ordering = ['-created_at']
