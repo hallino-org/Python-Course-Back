@@ -30,8 +30,10 @@ class UserManager(BaseUserManager):
         return user
 
     def create_superuser(self, email, username, password=None, **extra_fields):
-        extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_active', True)
+        extra_fields.setdefault('is_confirmed', True)
         return self.create_user(email, username, password, **extra_fields)
 
 
@@ -51,13 +53,31 @@ class User(AbstractBaseUser, PermissionsMixin):
         (2, 'advanced'),
     ]
 
-    email = models.EmailField(unique=True)
-    username = models.CharField(max_length=150, unique=True)
+    email = models.EmailField(
+        unique=True,
+        error_messages={
+            'unique': "A user with that email already exists.",
+        }
+    )
+
+    username = models.CharField(
+        max_length=150,
+        unique=True,
+        error_messages={
+            'unique': "A user with that username already exists.",
+        }
+    )
+
     firstname = models.CharField(max_length=150)
+
     lastname = models.CharField(max_length=150)
-    gender = models.IntegerField(choices=GENDER_CHOICES)
+
+    gender = models.IntegerField(choices=GENDER_CHOICES,default=1)
+
     phone_number = PhoneNumberField()
-    birth_date = models.DateField()
+
+    birth_date = models.DateField(null=True, blank=True)
+
     type = models.IntegerField(choices=USER_TYPE_CHOICES, default=1)
     level = models.IntegerField(choices=LEVEL_CHOICES, default=1)
 
@@ -79,6 +99,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         verbose_name_plural = 'Users'
 
         ordering = ['-created_at']
+
         indexes = [
             models.Index(fields=['email']),
             models.Index(fields=['username']),
@@ -94,3 +115,23 @@ class User(AbstractBaseUser, PermissionsMixin):
                 name='unique_username_case_insensitive',
             ),
         ]
+
+    @property
+    def full_name(self):
+        return f'{self.firstname} {self.lastname}'
+
+
+class Author(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    bio = models.TextField(help_text="Author's biography", null=True, blank=True)
+    specializations = models.JSONField(default=list, help_text="List of areas of expertise", null=True, blank=True)
+    total_courses = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return self.user.full_name
+
+    class Meta:
+        verbose_name = 'Author'
+        verbose_name_plural = 'Authors'
+
+        ordering = ['-total_courses']
