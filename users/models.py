@@ -5,19 +5,34 @@ from phonenumber_field.modelfields import PhoneNumberField
 
 
 class UserManager(BaseUserManager):
-    def create_user(self, email, password=None, **extra_fields):
+
+    def _validate_user_data(self, email, username):
         if not email:
             raise ValueError('The Email field must be set')
+
+        if not username:
+            raise ValueError('The Username field must be set')
+
+        if self.model.objects.filter(email=email).exists():
+            raise ValueError('User with this email already exists')
+
+        if self.model.objects.filter(username=username).exists():
+            raise ValueError('User with this username already exists')
+
+    def create_user(self, email, username, password=None, **extra_fields):
         email = self.normalize_email(email)
-        user = self.model(email=email, **extra_fields)
+        username = self.model.normalize_username(username)
+        self._validate_user_data(email, username)
+
+        user = self.model(email=email, username=username, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email, password=None, **extra_fields):
+    def create_superuser(self, email, username, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
-        return self.create_user(email, password, **extra_fields)
+        return self.create_user(email, username, password, **extra_fields)
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -64,3 +79,18 @@ class User(AbstractBaseUser, PermissionsMixin):
         verbose_name_plural = 'Users'
 
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['email']),
+            models.Index(fields=['username']),
+        ]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=['email'],
+                name='unique_email_case_insensitive',
+            ),
+            models.UniqueConstraint(
+                fields=['username'],
+                name='unique_username_case_insensitive',
+            ),
+        ]
