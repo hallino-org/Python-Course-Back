@@ -72,7 +72,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     lastname = models.CharField(max_length=150)
 
-    gender = models.IntegerField(choices=GENDER_CHOICES,default=1)
+    gender = models.IntegerField(choices=GENDER_CHOICES, default=1)
 
     phone_number = PhoneNumberField()
 
@@ -135,3 +135,48 @@ class Author(models.Model):
         verbose_name_plural = 'Authors'
 
         ordering = ['-total_courses']
+
+
+class UserCourse(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    course = models.ForeignKey('learning.Course', on_delete=models.CASCADE)  # Create this later
+    progress = models.IntegerField(default=0)  # Percentage
+    score = models.IntegerField(default=0)
+    rank = models.IntegerField()
+
+    class Meta:
+        unique_together = ['user', 'course']
+
+
+class Streak(models.Model):
+    STREAK_TYPE_CHOICES = [
+        (7, '7 days'),
+        (14, '14 days'),
+        (30, '30 days'),
+        (90, '90 days'),
+        (120, '120 days'),
+        (365, '365 days'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    last_interaction = models.DateField()
+    current_streak = models.IntegerField(default=0)
+    type = models.IntegerField(choices=STREAK_TYPE_CHOICES)
+
+
+class UserResponse(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    question = models.ForeignKey('learning.Question', on_delete=models.CASCADE)  # Create this later
+    text_answer = models.JSONField(default=list, null=True, blank=True)
+    choice_answer = models.JSONField(default=list, null=True, blank=True)
+
+
+class Staff(models.Model):
+    ROLE_CHOICES = [
+        (1, 'admin'),
+        (2, 'accounting'),
+        (3, 'support'),
+    ]
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    role_type = models.IntegerField(choices=ROLE_CHOICES)
