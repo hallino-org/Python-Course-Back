@@ -259,3 +259,10 @@ class Staff(models.Model):
 
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     role_type = models.IntegerField(choices=ROLE_CHOICES)
+
+    class Meta:
+        verbose_name = 'Staff member'
+        verbose_name_plural = 'Staff members'
+
+    def __str__(self):
+        return f"{self.user.full_name} - {self.get_role_type_display()}"
