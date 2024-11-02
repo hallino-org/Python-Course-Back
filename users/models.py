@@ -239,6 +239,15 @@ class UserResponse(models.Model):
     question = models.ForeignKey('learning.Question', on_delete=models.CASCADE)  # Create this later
     text_answer = models.JSONField(default=list, null=True, blank=True)
     choice_answer = models.JSONField(default=list, null=True, blank=True)
+    submitted_at = models.DateTimeField('submitted at', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'User response'
+        verbose_name_plural = 'User responses'
+        ordering = ['-submitted_at']
+
+    def __str__(self):
+        return f"{self.user.full_name} - {self.question}"
 
 
 class Staff(models.Model):
