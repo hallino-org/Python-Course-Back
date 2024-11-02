@@ -133,3 +133,46 @@ class Chapter(models.Model):
 
     def __str__(self):
         return f"{self.course.title} - {self.title}"
+
+    def get_active_lessons(self):
+        """Get all active lessons ordered by their order"""
+        return self.lessons.filter(is_active=True).order_by('order')
+
+
+class Lesson(models.Model):
+    LESSON_TYPE_CHOICES = [
+        (1, 'Lesson'),
+        (2, 'Quiz'),
+    ]
+
+    chapter = models.ForeignKey(
+        Chapter,
+        on_delete=models.CASCADE,
+        related_name='lessons'
+    )
+    title = models.CharField('title', max_length=255)
+    description = models.TextField('description')
+    order = models.PositiveIntegerField('order')
+    duration = models.PositiveIntegerField(
+        'duration',
+        help_text='Duration in minutes'
+    )
+    is_required = models.BooleanField('required', default=True)
+    is_active = models.BooleanField('active', default=True)
+    created_at = models.DateTimeField('created at', auto_now_add=True)
+    updated_at = models.DateTimeField('updated at', auto_now=True)
+    score = models.PositiveIntegerField('score')
+    lesson_type = models.IntegerField(
+        'lesson type',
+        choices=LESSON_TYPE_CHOICES
+    )
+
+    class Meta:
+        verbose_name = 'Lesson'
+        verbose_name_plural = 'Lessons'
+        ordering = ['chapter', 'order']
+        unique_together = ['chapter', 'order']
+
+    def __str__(self):
+        return f"{self.chapter.title} - {self.title}"
+
