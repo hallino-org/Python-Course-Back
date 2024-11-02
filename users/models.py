@@ -1,11 +1,11 @@
 # users/models.py
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
+from django.utils import timezone
 from phonenumber_field.modelfields import PhoneNumberField
 
 
 class UserManager(BaseUserManager):
-
     def _validate_user_data(self, email, username):
         if not email:
             raise ValueError('The Email field must be set')
@@ -13,19 +13,32 @@ class UserManager(BaseUserManager):
         if not username:
             raise ValueError('The Username field must be set')
 
-        if self.model.objects.filter(email=email).exists():
+        # Case-insensitive email check
+        email = self.normalize_email(email)
+        if self.model.objects.filter(email__iexact=email).exists():
             raise ValueError('User with this email already exists')
 
-        if self.model.objects.filter(username=username).exists():
+        # Case-insensitive username check
+        username = username.lower()
+        if self.model.objects.filter(username__iexact=username).exists():
             raise ValueError('User with this username already exists')
 
-    def create_user(self, email, username, password=None, **extra_fields):
-        email = self.normalize_email(email)
-        username = self.model.normalize_username(username)
-        self._validate_user_data(email, username)
+        return email, username
 
-        user = self.model(email=email, username=username, **extra_fields)
-        user.set_password(password)
+    def create_user(self, email, username, password=None, **extra_fields):
+        email, username = self._validate_user_data(email, username)
+
+        user = self.model(
+            email=email,
+            username=username,
+            **extra_fields
+        )
+
+        if password:
+            user.set_password(password)
+        else:
+            user.set_unusable_password()
+
         user.save(using=self._db)
         return user
 
@@ -34,6 +47,12 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_active', True)
         extra_fields.setdefault('is_confirmed', True)
+
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
+
         return self.create_user(email, username, password, **extra_fields)
 
 
@@ -140,7 +159,7 @@ class Author(models.Model):
 class UserCourse(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     course = models.ForeignKey('learning.Course', on_delete=models.CASCADE)  # Create this later
-    progress = models.IntegerField(default=0)  # Percentage
+    progress = models.IntegerField(default=0)
     score = models.IntegerField(default=0)
     rank = models.IntegerField()
 
