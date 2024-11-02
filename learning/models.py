@@ -105,3 +105,31 @@ class Course(models.Model):
     def calculate_rating(self):
         """Calculate average rating based on user reviews"""
         pass
+
+    def get_active_chapters(self):
+        return self.chapters.filter(is_active=True).order_by('order')
+
+
+class Chapter(models.Model):
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name='chapters'
+    )
+    title = models.CharField('title', max_length=255)
+    description = models.TextField('description')
+    order = models.PositiveIntegerField('order')
+    created_at = models.DateTimeField('created at', auto_now_add=True)
+    updated_at = models.DateTimeField('updated at', auto_now=True)
+    image = models.URLField('image URL', max_length=255)
+    estimated_time = models.PositiveIntegerField()
+    is_active = models.BooleanField('active', default=True)
+
+    class Meta:
+        verbose_name = 'Chapter'
+        verbose_name_plural = 'Chapters'
+        ordering = ['course', 'order']
+        unique_together = ['course', 'order']
+
+    def __str__(self):
+        return f"{self.course.title} - {self.title}"
