@@ -246,6 +246,28 @@ class ChoiceQuestion(BaseQuestion):
             raise ValidationError('Single-select questions can only have one correct answer')
 
 
+class TextQuestion(BaseQuestion):
+    correct_answer = models.JSONField(
+        default=list,
+        help_text='Array of ordered correct text answers'
+    )
+
+    class Meta:
+        verbose_name = 'Text question'
+        verbose_name_plural = 'Text questions'
+
+    def clean(self):
+        super().clean()
+        if self.question_type != 2:
+            raise ValidationError('Question type must be Text for TextQuestion')
+
+        if not isinstance(self.correct_answer, list):
+            raise ValidationError('Correct answer must be a list')
+
+        if not self.correct_answer:
+            raise ValidationError('At least one correct answer must be provided')
+
+
 class Choice(models.Model):
     CHOICE_TYPE_CHOICES = [
         (1, 'Text Choice'),
