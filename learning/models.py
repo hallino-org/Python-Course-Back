@@ -177,6 +177,10 @@ class Lesson(models.Model):
     def __str__(self):
         return f"{self.chapter.title} - {self.title}"
 
+    def get_active_slides(self):
+        """Get all active slides"""
+        return self.slides.filter(is_active=True).order_by('order')
+
 
 class BaseQuestion(models.Model):
     QUESTION_TYPE_CHOICES = [
@@ -225,49 +229,6 @@ class BaseQuestion(models.Model):
             raise ValidationError('Either image or description must be provided')
 
 
-class ChoiceQuestion(BaseQuestion):
-    is_multiselect = models.BooleanField(default=False)
-    correct_choices = models.ManyToManyField(
-        'Choice',
-        related_name='correct_for_questions'
-    )
-
-    class Meta:
-        verbose_name = 'Choice question'
-        verbose_name_plural = 'Choice questions'
-
-    def clean(self):
-        super().clean()
-        if self.question_type != 1:  # Choice type
-            raise ValidationError('Question type must be Choice for ChoiceQuestion')
-
-        # Validate correct choices count
-        if not self.is_multiselect and self.correct_choices.count() > 1:
-            raise ValidationError('Single-select questions can only have one correct answer')
-
-
-class TextQuestion(BaseQuestion):
-    correct_answer = models.JSONField(
-        default=list,
-        help_text='Array of ordered correct text answers'
-    )
-
-    class Meta:
-        verbose_name = 'Text question'
-        verbose_name_plural = 'Text questions'
-
-    def clean(self):
-        super().clean()
-        if self.question_type != 2:
-            raise ValidationError('Question type must be Text for TextQuestion')
-
-        if not isinstance(self.correct_answer, list):
-            raise ValidationError('Correct answer must be a list')
-
-        if not self.correct_answer:
-            raise ValidationError('At least one correct answer must be provided')
-
-
 class Choice(models.Model):
     CHOICE_TYPE_CHOICES = [
         (1, 'Text Choice'),
@@ -278,7 +239,7 @@ class Choice(models.Model):
     ]
 
     question = models.ForeignKey(
-        ChoiceQuestion,
+        BaseQuestion,
         on_delete=models.CASCADE,
         related_name='choices'
     )
@@ -313,3 +274,126 @@ class Choice(models.Model):
 
         if self.image and not self.alt_text:
             raise ValidationError('Alternative text is required when image is provided')
+
+
+class ChoiceQuestion(BaseQuestion):
+    is_multiselect = models.BooleanField(default=False)
+    correct_choices = models.ManyToManyField(
+        Choice,
+        related_name='correct_for_questions'
+    )
+
+    class Meta:
+        verbose_name = 'Choice question'
+        verbose_name_plural = 'Choice questions'
+
+    def clean(self):
+        super().clean()
+        if self.question_type != 1:  # Choice type
+            raise ValidationError('Question type must be Choice for ChoiceQuestion')
+
+        # Validate correct choices count
+        if not self.is_multiselect and self.correct_choices.count() > 1:
+            raise ValidationError('Single-select questions can only have one correct answer')
+
+
+class TextQuestion(BaseQuestion):
+
+    ################################
+
+    correct_answer = models.JSONField(
+        default=list,
+        help_text='Array of ordered correct text answers'
+    )
+
+    class Meta:
+        verbose_name = 'Text question'
+        verbose_name_plural = 'Text questions'
+
+    def clean(self):
+        super().clean()
+        if self.question_type != 2:
+            raise ValidationError('Question type must be Text for TextQuestion')
+
+        if not isinstance(self.correct_answer, list):
+            raise ValidationError('Correct answer must be a list')
+
+        if not self.correct_answer:
+            raise ValidationError('At least one correct answer must be provided')
+
+
+class Slide(models.Model):
+    SLIDE_TYPE_CHOICES = [
+        (1, 'Text'),
+        (2, 'Quiz'),
+        (3, 'Video'),
+        (4, 'Interactive'),
+    ]
+
+    lesson = models.ForeignKey(
+        Lesson,
+        on_delete=models.CASCADE,
+        related_name='slides'
+    )
+    title = models.CharField(max_length=255)
+    content = models.TextField()
+    total_marks = models.PositiveIntegerField(
+        null=True,
+        blank=True
+    )
+    type = models.IntegerField(choices=SLIDE_TYPE_CHOICES)
+    time_limit = models.PositiveIntegerField(
+        null=True,
+        blank=True
+    )
+    is_active = models.BooleanField(default=True)
+    is_required = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    hints = models.TextField(null=True, blank=True)
+    alt_text = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True
+    )
+    image = models.URLField(max_length=255, null=True, blank=True)
+    video_url = models.URLField(
+        max_length=255,
+        null=True,
+        blank=True
+    )
+    comments_count = models.PositiveIntegerField(
+        default=0
+    )
+    question = models.ForeignKey(
+        BaseQuestion,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='slides'
+    )
+    editor = models.ForeignKey(
+        'users.Staff',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='edited_slides'
+    )
+    order = models.PositiveIntegerField()
+
+    class Meta:
+        verbose_name = 'Slide'
+        verbose_name_plural = 'Slides'
+        ordering = ['lesson', 'order']
+        unique_together = ['lesson', 'order']
+
+    def __str__(self):
+        return f"{self.lesson.title} - {self.title}"
+
+    def clean(self):
+        super().clean()
+        if self.type == 2 and not self.question:
+            raise ValidationError('Question is required for quiz slides')
+        if self.type == 2 and not self.total_marks:
+            raise ValidationError('Total marks is required for quiz slides')
+        if self.type == 3 and not self.video_url:
+            raise ValidationError('Video URL is required for video slides')
