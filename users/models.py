@@ -181,6 +181,29 @@ class Streak(models.Model):
     last_interaction = models.DateField()
     current_streak = models.IntegerField(default=0)
     type = models.IntegerField(choices=STREAK_TYPE_CHOICES)
+    highest_streak = models.IntegerField('highest streak', default=0)
+
+    class Meta:
+        verbose_name = 'streak'
+        verbose_name_plural = 'streaks'
+        unique_together = ['user', 'type']
+
+    def update_streak(self, interaction_date=None):
+        if interaction_date is None:
+            interaction_date = timezone.now().date()
+
+        if not self.last_interaction:
+            self.current_streak = 1
+        else:
+            days_diff = (interaction_date - self.last_interaction).days
+            if days_diff == 1:  # consecutive day
+                self.current_streak += 1
+            elif days_diff > 1:  # streak broken
+                self.current_streak = 1
+
+        self.last_interaction = interaction_date
+        self.highest_streak = max(self.highest_streak, self.current_streak)
+        self.save()
 
 
 class UserResponse(models.Model):
