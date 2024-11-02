@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
@@ -176,3 +177,117 @@ class Lesson(models.Model):
     def __str__(self):
         return f"{self.chapter.title} - {self.title}"
 
+
+class BaseQuestion(models.Model):
+    QUESTION_TYPE_CHOICES = [
+        (1, 'Choice'),
+        (2, 'Text'),
+    ]
+
+    title = models.CharField('title', max_length=255)
+    description = models.TextField('description')
+    question_type = models.IntegerField(
+        choices=QUESTION_TYPE_CHOICES
+    )
+    image = models.URLField(
+        max_length=1024,
+        null=True,
+        blank=True
+    )
+    video_url = models.URLField(
+        max_length=1024,
+        null=True,
+        blank=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    answer_description = models.TextField(
+        help_text='Detailed explanation of the answer'
+    )
+    editor = models.ForeignKey(
+        'users.Staff',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='edited_questions'
+    )
+
+    class Meta:
+        verbose_name = 'Base question'
+        verbose_name_plural = 'Base questions'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.title
+
+    def clean(self):
+        super().clean()
+        if not self.image and not self.description:
+            raise ValidationError('Either image or description must be provided')
+
+
+class ChoiceQuestion(BaseQuestion):
+    is_multiselect = models.BooleanField(default=False)
+    correct_choices = models.ManyToManyField(
+        'Choice',
+        related_name='correct_for_questions'
+    )
+
+    class Meta:
+        verbose_name = 'Choice question'
+        verbose_name_plural = 'Choice questions'
+
+    def clean(self):
+        super().clean()
+        if self.question_type != 1:  # Choice type
+            raise ValidationError('Question type must be Choice for ChoiceQuestion')
+
+        # Validate correct choices count
+        if not self.is_multiselect and self.correct_choices.count() > 1:
+            raise ValidationError('Single-select questions can only have one correct answer')
+
+
+class Choice(models.Model):
+    CHOICE_TYPE_CHOICES = [
+        (1, 'Text Choice'),
+        (2, 'Picture Choice'),
+        (3, 'None'),
+        (4, 'All'),
+        (5, 'Other'),
+    ]
+
+    question = models.ForeignKey(
+        ChoiceQuestion,
+        on_delete=models.CASCADE,
+        related_name='choices'
+    )
+    text = models.CharField('text', max_length=255)
+    alt_text = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True
+    )
+    image = models.URLField(
+        max_length=255,
+        null=True,
+        blank=True
+    )
+    order = models.PositiveIntegerField('order')
+    hidden = models.BooleanField('hidden', default=False)
+    type = models.IntegerField(choices=CHOICE_TYPE_CHOICES)
+
+    class Meta:
+        verbose_name = 'Choice'
+        verbose_name_plural = 'Choices'
+        ordering = ['question', 'order']
+        unique_together = ['question', 'order']
+
+    def __str__(self):
+        return f"{self.question.title} - {self.text}"
+
+    def clean(self):
+        super().clean()
+        if self.type == 2 and not self.image:
+            raise ValidationError('Image is required for picture choices')
+
+        if self.image and not self.alt_text:
+            raise ValidationError('Alternative text is required when image is provided')
