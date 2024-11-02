@@ -1,5 +1,6 @@
 # users/models.py
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.utils import timezone
 from phonenumber_field.modelfields import PhoneNumberField
@@ -135,9 +136,24 @@ class User(AbstractBaseUser, PermissionsMixin):
             ),
         ]
 
+    def __str__(self):
+        return self.email
+
     @property
     def full_name(self):
         return f'{self.firstname} {self.lastname}'
+
+    def has_valid_subscription(self):
+        if not self.expire_date:
+            return False
+        return self.expire_date >= timezone.now().date()
+
+    def get_role(self):
+        if hasattr(self, 'staff'):
+            return dict(Staff.ROLE_CHOICES)[self.staff.role_type]
+        if hasattr(self, 'author_profile'):
+            return 'author'
+        return 'student'
 
 
 class Author(models.Model):
@@ -155,16 +171,28 @@ class Author(models.Model):
 
         ordering = ['-total_courses']
 
+    def get_active_courses(self):
+        """Get author's active courses"""
+        return self.course_set.filter(is_active=True)  # Create this latter
+
 
 class UserCourse(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     course = models.ForeignKey('learning.Course', on_delete=models.CASCADE)  # Create this later
-    progress = models.IntegerField(default=0)
-    score = models.IntegerField(default=0)
+    progress = models.IntegerField(
+        default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    score = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     rank = models.IntegerField()
 
     class Meta:
+        verbose_name = 'User course'
+        verbose_name_plural = 'User courses'
         unique_together = ['user', 'course']
+
+    def __str__(self):
+        return f"{self.user.full_name} - {self.course}"
 
 
 class Streak(models.Model):
@@ -184,8 +212,8 @@ class Streak(models.Model):
     highest_streak = models.IntegerField('highest streak', default=0)
 
     class Meta:
-        verbose_name = 'streak'
-        verbose_name_plural = 'streaks'
+        verbose_name = 'Streak'
+        verbose_name_plural = 'Streaks'
         unique_together = ['user', 'type']
 
     def update_streak(self, interaction_date=None):
