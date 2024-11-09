@@ -14,12 +14,10 @@ class UserManager(BaseUserManager):
         if not username:
             raise ValueError('The Username field must be set')
 
-        # Case-insensitive email check
         email = self.normalize_email(email)
         if self.model.objects.filter(email__iexact=email).exists():
             raise ValueError('User with this email already exists')
 
-        # Case-insensitive username check
         username = username.lower()
         if self.model.objects.filter(username__iexact=username).exists():
             raise ValueError('User with this username already exists')
@@ -173,7 +171,7 @@ class Author(models.Model):
 
     def get_active_courses(self):
         """Get author's active courses"""
-        return self.course_set.filter(is_active=True)  # Create this latter
+        return self.courses.filter(is_active=True)
 
 
 class UserCourse(models.Model):
@@ -236,7 +234,7 @@ class Streak(models.Model):
 
 class UserResponse(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    question = models.ForeignKey('learning.Question', on_delete=models.CASCADE)  # Create this later
+    question = models.ForeignKey('learning.BaseQuestion', on_delete=models.CASCADE)
     text_answer = models.JSONField(default=list, null=True, blank=True)
     choice_answer = models.JSONField(default=list, null=True, blank=True)
     submitted_at = models.DateTimeField('submitted at', auto_now_add=True)
