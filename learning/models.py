@@ -1,6 +1,13 @@
+from django.apps import AppConfig
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
+
+
+class LearningConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'learning'
+    verbose_name = 'Learning Management'
 
 
 class Category(models.Model):
@@ -298,7 +305,6 @@ class ChoiceQuestion(BaseQuestion):
 
 
 class TextQuestion(BaseQuestion):
-
     ################################
 
     correct_answer = models.JSONField(
