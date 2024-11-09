@@ -49,8 +49,7 @@ class Course(models.Model):
         verbose_name='Categories'
     )
     duration = models.PositiveIntegerField()
-    level = models.CharField(
-        max_length=20,
+    level = models.IntegerField(
         choices=LEVEL_CHOICES
     )
     price = models.DecimalField(
