@@ -362,3 +362,34 @@ class Slide(models.Model):
 
     def __str__(self):
         return f"{self.lesson.title} - {self.title}"
+
+
+class Editor(models.Model):
+
+    initial_code = models.TextField(
+        verbose_name='Initial Code',
+        help_text='Default code that will be shown in the editor',
+        blank=True
+    )
+
+    lang = models.CharField(
+        max_length=10,
+        choices=LearningConstants.LANGUAGE_CHOICES,
+        default='py',
+        verbose_name='Programming Language'
+    )
+
+    executable = models.BooleanField(
+        default=False,
+        help_text='Whether the code can be executed in the editor'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Code Editor'
+        verbose_name_plural = 'Code Editors'
+
+    def __str__(self):
+        return f"{self.get_lang_display()} Editor - {self.initial_code[:50]}"
