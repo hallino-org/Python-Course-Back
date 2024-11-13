@@ -1,7 +1,8 @@
 from django.apps import AppConfig
-from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
+
+from learning.constants import LearningConstants
 
 
 class LearningConfig(AppConfig):
@@ -37,6 +38,12 @@ class Course(models.Model):
     ]
 
     title = models.CharField(max_length=255)
+    slug = models.SlugField(
+        max_length=255,
+        unique=True,
+        help_text='URL-friendly version of the title',
+        allow_unicode=True
+    )
     description = models.TextField()
     authors = models.ManyToManyField(
         'users.Author',
@@ -50,6 +57,8 @@ class Course(models.Model):
     )
     duration = models.PositiveIntegerField()
     level = models.IntegerField(
+        null=True,
+        blank=True,
         choices=LEVEL_CHOICES
     )
     price = models.DecimalField(
@@ -80,6 +89,7 @@ class Course(models.Model):
     )
 
     language = models.IntegerField(
+        default=1,
         choices=LANGUAGE_CHOICES
     )
 
@@ -90,7 +100,8 @@ class Course(models.Model):
             MinValueValidator(0),
             MaxValueValidator(5)
         ],
-        default=0
+        null=True,
+        blank=True
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -99,11 +110,9 @@ class Course(models.Model):
     class Meta:
         verbose_name = 'Course'
         verbose_name_plural = 'Courses'
-        ordering = ['-created_at']
         indexes = [
             models.Index(fields=['title']),
-            models.Index(fields=['level']),
-            models.Index(fields=['is_published', 'is_active']),
+            models.Index(fields=['slug']),
         ]
 
     def __str__(self):
@@ -135,8 +144,6 @@ class Chapter(models.Model):
     class Meta:
         verbose_name = 'Chapter'
         verbose_name_plural = 'Chapters'
-        ordering = ['course', 'order']
-        unique_together = ['course', 'order']
 
     def __str__(self):
         return f"{self.course.title} - {self.title}"
@@ -144,6 +151,7 @@ class Chapter(models.Model):
     def get_active_lessons(self):
         """Get all active lessons ordered by their order"""
         return self.lessons.filter(is_active=True).order_by('order')
+        # Move to manager.py
 
 
 class Lesson(models.Model):
@@ -177,8 +185,6 @@ class Lesson(models.Model):
     class Meta:
         verbose_name = 'Lesson'
         verbose_name_plural = 'Lessons'
-        ordering = ['chapter', 'order']
-        unique_together = ['chapter', 'order']
 
     def __str__(self):
         return f"{self.chapter.title} - {self.title}"
@@ -186,18 +192,15 @@ class Lesson(models.Model):
     def get_active_slides(self):
         """Get all active slides"""
         return self.slides.filter(is_active=True).order_by('order')
+        # Move to manager.py
 
 
 class BaseQuestion(models.Model):
-    QUESTION_TYPE_CHOICES = [
-        (1, 'Choice'),
-        (2, 'Text'),
-    ]
 
     title = models.CharField('title', max_length=255)
     description = models.TextField('description')
     question_type = models.IntegerField(
-        choices=QUESTION_TYPE_CHOICES
+        choices=LearningConstants.QUESTION_TYPE_CHOICES
     )
     image = models.URLField(
         max_length=1024,
@@ -228,11 +231,6 @@ class BaseQuestion(models.Model):
 
     def __str__(self):
         return self.title
-
-    def clean(self):
-        super().clean()
-        if not self.image and not self.description:
-            raise ValidationError('Either image or description must be provided')
 
 
 class Choice(models.Model):
@@ -267,19 +265,9 @@ class Choice(models.Model):
     class Meta:
         verbose_name = 'Choice'
         verbose_name_plural = 'Choices'
-        ordering = ['question', 'order']
-        unique_together = ['question', 'order']
 
     def __str__(self):
         return f"{self.question.title} - {self.text}"
-
-    def clean(self):
-        super().clean()
-        if self.type == 2 and not self.image:
-            raise ValidationError('Image is required for picture choices')
-
-        if self.image and not self.alt_text:
-            raise ValidationError('Alternative text is required when image is provided')
 
 
 class ChoiceQuestion(BaseQuestion):
@@ -289,18 +277,12 @@ class ChoiceQuestion(BaseQuestion):
         related_name='correct_for_questions'
     )
 
+    # Change type
+
     class Meta:
         verbose_name = 'Choice question'
         verbose_name_plural = 'Choice questions'
 
-    def clean(self):
-        super().clean()
-        if self.question_type != 1:  # Choice type
-            raise ValidationError('Question type must be Choice for ChoiceQuestion')
-
-        # Validate correct choices count
-        if not self.is_multiselect and self.correct_choices.count() > 1:
-            raise ValidationError('Single-select questions can only have one correct answer')
 
 
 class TextQuestion(BaseQuestion):
@@ -311,28 +293,17 @@ class TextQuestion(BaseQuestion):
         help_text='Array of ordered correct text answers'
     )
 
+    # Array Field
+
     class Meta:
         verbose_name = 'Text question'
         verbose_name_plural = 'Text questions'
-
-    def clean(self):
-        super().clean()
-        if self.question_type != 2:
-            raise ValidationError('Question type must be Text for TextQuestion')
-
-        if not isinstance(self.correct_answer, list):
-            raise ValidationError('Correct answer must be a list')
-
-        if not self.correct_answer:
-            raise ValidationError('At least one correct answer must be provided')
 
 
 class Slide(models.Model):
     SLIDE_TYPE_CHOICES = [
         (1, 'Text'),
         (2, 'Quiz'),
-        (3, 'Video'),
-        (4, 'Interactive'),
     ]
 
     lesson = models.ForeignKey(
@@ -375,7 +346,7 @@ class Slide(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='slides'
+        related_name='questions_slides'
     )
     editor = models.ForeignKey(
         'users.Staff',
@@ -388,17 +359,6 @@ class Slide(models.Model):
     class Meta:
         verbose_name = 'Slide'
         verbose_name_plural = 'Slides'
-        ordering = ['lesson', 'order']
-        unique_together = ['lesson', 'order']
 
     def __str__(self):
         return f"{self.lesson.title} - {self.title}"
-
-    def clean(self):
-        super().clean()
-        if self.type == 2 and not self.question:
-            raise ValidationError('Question is required for quiz slides')
-        if self.type == 2 and not self.total_marks:
-            raise ValidationError('Total marks is required for quiz slides')
-        if self.type == 3 and not self.video_url:
-            raise ValidationError('Video URL is required for video slides')
