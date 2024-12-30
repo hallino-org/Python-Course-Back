@@ -1,80 +1,81 @@
+from django.utils.text import slugify
 from rest_framework import serializers
 
-from .models import Course, Chapter, Lesson, Slide, BaseQuestion, Choice
+from .models import (
+    Category, Course, Chapter, Lesson, Editor,
+    BaseQuestion, Choice, Slide
+)
+
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ['id', 'title', 'description']
+
+
+class EditorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Editor
+        fields = [
+            'id', 'initial_code', 'lang', 'executable',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
 
 
 class ChoiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Choice
-        fields = ['id', 'text', 'alt_text', 'image', 'order', 'type']
+        fields = [
+            'id', 'question', 'text', 'alt_text', 'image',
+            'order', 'hidden', 'type', 'is_correct'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+    def validate(self, data):
+        if data.get('type') == 2 and not data.get('image'):
+            raise serializers.ValidationError(
+                "Picture choices must have an image"
+            )
+        if data.get('type') == 1 and not data.get('text'):
+            raise serializers.ValidationError(
+                "Text choices must have text"
+            )
+        return data
 
 
 class BaseQuestionSerializer(serializers.ModelSerializer):
     choices = ChoiceSerializer(many=True, read_only=True)
+    correct_choices = serializers.SerializerMethodField()
 
     class Meta:
         model = BaseQuestion
         fields = [
             'id', 'title', 'description', 'question_type',
-            'image', 'video_url', 'answer_description', 'choices'
+            'image', 'video_url', 'answer_description',
+            'editor', 'is_text_input', 'choices',
+            'correct_choices', 'created_at', 'updated_at'
         ]
+        read_only_fields = ['created_at', 'updated_at']
 
+    def get_correct_choices(self, obj):
+        return ChoiceSerializer(
+            obj.choices.filter(is_correct=True),
+            many=True
+        ).data
 
-class SlideSerializer(serializers.ModelSerializer):
-    question = BaseQuestionSerializer(read_only=True)
-
-    class Meta:
-        model = Slide
-        fields = [
-            'id', 'title', 'content', 'type', 'time_limit',
-            'is_active', 'is_required', 'hints', 'image',
-            'video_url', 'total_marks', 'question', 'order'
-        ]
-
-
-class LessonSerializer(serializers.ModelSerializer):
-    slides = SlideSerializer(many=True, read_only=True, source='get_active_slides')
-
-    class Meta:
-        model = Lesson
-        fields = [
-            'id', 'title', 'description', 'order', 'duration',
-            'is_required', 'is_active', 'score', 'lesson_type',
-            'slides'
-        ]
-
-
-class ChapterSerializer(serializers.ModelSerializer):
-    lessons = LessonSerializer(many=True, read_only=True, source='get_active_lessons')
-
-    class Meta:
-        model = Chapter
-        fields = [
-            'id', 'title', 'description', 'order',
-            'image', 'estimated_time', 'is_active', 'lessons'
-        ]
-
-
-class CourseListSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Course
-        fields = [
-            'id', 'title', 'description', 'level', 'price', 'authors',
-            'duration', 'rating', 'language', 'logo',
-            'is_published', 'is_active', 'start_date', 'end_date'
-        ]
-
-
-class CourseDetailSerializer(serializers.ModelSerializer):
-    chapters = ChapterSerializer(many=True, read_only=True, source='get_active_chapters')
-    authors = serializers.StringRelatedField(many=True)
-    categories = serializers.StringRelatedField(many=True)
-
-    class Meta:
-        model = Course
-        fields = [
-            'id', 'title', 'description', 'authors', 'categories',
-            'duration', 'level', 'price', 'start_date', 'end_date',
-            'is_published', 'is_active', 'logo', 'video_url',
-            'language', 'rating', 'chapters'
-        ]
+    def validate(self, data):
+        if self.instance:
+            choices = self.instance.choices.all()
+            if data.get('question_type') in [1, 2]:
+                if not choices.exists():
+                    raise serializers.ValidationError(
+                        "Choice questions must have at least one choice"
+                    )
+                if data.get('question_type') == 1:
+                    correct_count = choices.filter(is_correct=True).count()
+                    if correct_count != 1:
+                        raise serializers.ValidationError(
+                            "Single choice questions must have exactly one correct answer"
+                        )
+        return data
