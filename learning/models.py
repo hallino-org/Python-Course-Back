@@ -77,8 +77,8 @@ class Course(models.Model):
     is_published = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
 
-    logo = models.URLField('logo URL', max_length=255)
-    video_url = models.URLField('video URL', max_length=255)
+    logo = models.URLField('logo URL', max_length=255, null=True, blank=True)
+    video_url = models.URLField('video URL', max_length=255, null=True, blank=True)
 
     requirements = models.ManyToManyField(
         'self',
@@ -137,7 +137,7 @@ class Chapter(models.Model):
     order = models.PositiveIntegerField('order')
     created_at = models.DateTimeField('created at', auto_now_add=True)
     updated_at = models.DateTimeField('updated at', auto_now=True)
-    image = models.URLField('image URL', max_length=255)
+    image = models.URLField('image URL', max_length=255, null=True, blank=True)
     estimated_time = models.PositiveIntegerField()
     is_active = models.BooleanField('active', default=True)
 
@@ -149,7 +149,6 @@ class Chapter(models.Model):
         return f"{self.course.title} - {self.title}"
 
     def get_active_lessons(self):
-        """Get all active lessons ordered by their order"""
         return self.lessons.filter(is_active=True).order_by('order')
         # Move to manager.py
 
@@ -190,47 +189,77 @@ class Lesson(models.Model):
         return f"{self.chapter.title} - {self.title}"
 
     def get_active_slides(self):
-        """Get all active slides"""
         return self.slides.filter(is_active=True).order_by('order')
         # Move to manager.py
 
 
+class Editor(models.Model):
+    initial_code = models.TextField(
+        verbose_name='Initial Code',
+        help_text='Default code that will be shown in the editor',
+        blank=True
+    )
+
+    lang = models.CharField(
+        max_length=10,
+        choices=LearningConstants.LANGUAGE_CHOICES,
+        default='py',
+        verbose_name='Programming Language'
+    )
+
+    executable = models.BooleanField(
+        default=False,
+        help_text='Whether the code can be executed in the editor'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Code Editor'
+        verbose_name_plural = 'Code Editors'
+
+    def __str__(self):
+        return f"{self.get_lang_display()} Editor - {self.initial_code[:50]}"
+
+
 class BaseQuestion(models.Model):
+    QUESTION_TYPE_CHOICES = [
+        (1, 'Single Choice'),
+        (2, 'Multiple Choice'),
+        (3, 'Text'),
+    ]
 
     title = models.CharField('title', max_length=255)
     description = models.TextField('description')
-    question_type = models.IntegerField(
-        choices=LearningConstants.QUESTION_TYPE_CHOICES
-    )
-    image = models.URLField(
-        max_length=1024,
-        null=True,
-        blank=True
-    )
-    video_url = models.URLField(
-        max_length=1024,
-        null=True,
-        blank=True
-    )
+    question_type = models.IntegerField(choices=QUESTION_TYPE_CHOICES)
+    image = models.URLField(max_length=1024, null=True, blank=True)
+    video_url = models.URLField(max_length=1024, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    answer_description = models.TextField(
-        help_text='Detailed explanation of the answer'
-    )
+    answer_description = models.TextField(help_text='Detailed explanation of the answer')
     editor = models.ForeignKey(
-        'users.Staff',
-        on_delete=models.SET_NULL,
+        Editor,
+        on_delete=models.CASCADE,
         null=True,
-        related_name='edited_questions'
+        related_name='editor_for_questions'
+    )
+    is_text_input = models.BooleanField(
+        default=False,
+        help_text="If True, answers must be typed rather than selected"
     )
 
     class Meta:
-        verbose_name = 'Base question'
-        verbose_name_plural = 'Base questions'
+        verbose_name = 'Question'
+        verbose_name_plural = 'Questions'
         ordering = ['-created_at']
 
     def __str__(self):
         return self.title
+
+    @property
+    def is_multiple_choice(self):
+        return self.question_type == 2
 
 
 class Choice(models.Model):
@@ -248,56 +277,25 @@ class Choice(models.Model):
         related_name='choices'
     )
     text = models.CharField('text', max_length=255)
-    alt_text = models.CharField(
-        max_length=255,
-        null=True,
-        blank=True
-    )
-    image = models.URLField(
-        max_length=255,
-        null=True,
-        blank=True
-    )
+    alt_text = models.CharField(max_length=255, null=True, blank=True)
+    image = models.URLField(max_length=255, null=True, blank=True)
     order = models.PositiveIntegerField('order')
     hidden = models.BooleanField('hidden', default=False)
     type = models.IntegerField(choices=CHOICE_TYPE_CHOICES)
+    is_correct = models.BooleanField(
+        default=False,
+        help_text="Indicates if this choice is a correct answer"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = 'Choice'
         verbose_name_plural = 'Choices'
+        ordering = ['order']
 
     def __str__(self):
         return f"{self.question.title} - {self.text}"
-
-
-class ChoiceQuestion(BaseQuestion):
-    is_multiselect = models.BooleanField(default=False)
-    correct_choices = models.ManyToManyField(
-        Choice,
-        related_name='correct_for_questions'
-    )
-
-    # Change type
-
-    class Meta:
-        verbose_name = 'Choice question'
-        verbose_name_plural = 'Choice questions'
-
-
-
-class TextQuestion(BaseQuestion):
-    ################################
-
-    correct_answer = models.JSONField(
-        default=list,
-        help_text='Array of ordered correct text answers'
-    )
-
-    # Array Field
-
-    class Meta:
-        verbose_name = 'Text question'
-        verbose_name_plural = 'Text questions'
 
 
 class Slide(models.Model):
@@ -362,34 +360,3 @@ class Slide(models.Model):
 
     def __str__(self):
         return f"{self.lesson.title} - {self.title}"
-
-
-class Editor(models.Model):
-
-    initial_code = models.TextField(
-        verbose_name='Initial Code',
-        help_text='Default code that will be shown in the editor',
-        blank=True
-    )
-
-    lang = models.CharField(
-        max_length=10,
-        choices=LearningConstants.LANGUAGE_CHOICES,
-        default='py',
-        verbose_name='Programming Language'
-    )
-
-    executable = models.BooleanField(
-        default=False,
-        help_text='Whether the code can be executed in the editor'
-    )
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        verbose_name = 'Code Editor'
-        verbose_name_plural = 'Code Editors'
-
-    def __str__(self):
-        return f"{self.get_lang_display()} Editor - {self.initial_code[:50]}"
