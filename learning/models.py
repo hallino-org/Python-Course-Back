@@ -2,7 +2,7 @@ from django.apps import AppConfig
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
-from learning.constants import LearningConstants
+from learning.learning_constants import LearningConstants
 
 
 class LearningConfig(AppConfig):
@@ -25,13 +25,6 @@ class Category(models.Model):
 
 
 class Course(models.Model):
-    LEVEL_CHOICES = [
-        (1, 'Elementary'),
-        (2, 'Intermediate'),
-        (3, 'Upper Intermediate'),
-        (4, 'Advanced'),
-    ]
-
     LANGUAGE_CHOICES = [
         (1, 'Fa'),
         (2, 'En'),
@@ -59,7 +52,7 @@ class Course(models.Model):
     level = models.IntegerField(
         null=True,
         blank=True,
-        choices=LEVEL_CHOICES
+        choices=LearningConstants.LEVEL_CHOICES
     )
     price = models.DecimalField(
         max_digits=10,
@@ -138,7 +131,7 @@ class Chapter(models.Model):
     created_at = models.DateTimeField('created at', auto_now_add=True)
     updated_at = models.DateTimeField('updated at', auto_now=True)
     image = models.URLField('image URL', max_length=255, null=True, blank=True)
-    estimated_time = models.PositiveIntegerField()
+    estimated_time = models.PositiveIntegerField(help_text='estimated in minutes')
     is_active = models.BooleanField('active', default=True)
 
     class Meta:
@@ -154,11 +147,6 @@ class Chapter(models.Model):
 
 
 class Lesson(models.Model):
-    LESSON_TYPE_CHOICES = [
-        (1, 'Lesson'),
-        (2, 'Quiz'),
-    ]
-
     chapter = models.ForeignKey(
         Chapter,
         on_delete=models.CASCADE,
@@ -178,7 +166,7 @@ class Lesson(models.Model):
     score = models.PositiveIntegerField('score')
     lesson_type = models.IntegerField(
         'lesson type',
-        choices=LESSON_TYPE_CHOICES
+        choices=LearningConstants.LESSON_TYPE_CHOICES
     )
 
     class Meta:
@@ -224,15 +212,9 @@ class Editor(models.Model):
 
 
 class BaseQuestion(models.Model):
-    QUESTION_TYPE_CHOICES = [
-        (1, 'Single Choice'),
-        (2, 'Multiple Choice'),
-        (3, 'Text'),
-    ]
-
     title = models.CharField('title', max_length=255)
     description = models.TextField('description')
-    question_type = models.IntegerField(choices=QUESTION_TYPE_CHOICES)
+    question_type = models.IntegerField(choices=LearningConstants.QUESTION_TYPE_CHOICES)
     image = models.URLField(max_length=1024, null=True, blank=True)
     video_url = models.URLField(max_length=1024, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -263,14 +245,6 @@ class BaseQuestion(models.Model):
 
 
 class Choice(models.Model):
-    CHOICE_TYPE_CHOICES = [
-        (1, 'Text Choice'),
-        (2, 'Picture Choice'),
-        (3, 'None'),
-        (4, 'All'),
-        (5, 'Other'),
-    ]
-
     question = models.ForeignKey(
         BaseQuestion,
         on_delete=models.CASCADE,
@@ -281,7 +255,7 @@ class Choice(models.Model):
     image = models.URLField(max_length=255, null=True, blank=True)
     order = models.PositiveIntegerField('order')
     hidden = models.BooleanField('hidden', default=False)
-    type = models.IntegerField(choices=CHOICE_TYPE_CHOICES)
+    type = models.IntegerField(choices=LearningConstants.CHOICE_TYPE_CHOICES)
     is_correct = models.BooleanField(
         default=False,
         help_text="Indicates if this choice is a correct answer"
@@ -299,11 +273,6 @@ class Choice(models.Model):
 
 
 class Slide(models.Model):
-    SLIDE_TYPE_CHOICES = [
-        (1, 'Text'),
-        (2, 'Quiz'),
-    ]
-
     lesson = models.ForeignKey(
         Lesson,
         on_delete=models.CASCADE,
@@ -315,7 +284,7 @@ class Slide(models.Model):
         null=True,
         blank=True
     )
-    type = models.IntegerField(choices=SLIDE_TYPE_CHOICES)
+    type = models.IntegerField(choices=LearningConstants.SLIDE_TYPE_CHOICES)
     time_limit = models.PositiveIntegerField(
         null=True,
         blank=True
