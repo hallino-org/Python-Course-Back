@@ -1,63 +1,210 @@
+from django.db import models
+from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets, permissions, filters
+from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import Course, Lesson, Slide
+from .filters import (
+    CourseFilter, ChapterFilter, LessonFilter
+)
+from .models import (
+    Category, Course, Chapter, Lesson,
+    Slide
+)
+from .pagination import StandardResultsSetPagination
+from .permissions import (
+    IsAuthorOrReadOnly, IsCourseAuthorOrReadOnly
+)
 from .serializers import (
-    CourseListSerializer, CourseDetailSerializer,
-    LessonSerializer, SlideSerializer, ChapterSerializer
+    CategorySerializer, CourseSerializer, ChapterSerializer,
+    LessonSerializer
 )
 
 
-class CourseViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Course.objects.filter(is_active=True)
-    permission_classes = [permissions.IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['level', 'language', 'categories', 'is_published']
+class CategoryViewSet(viewsets.ModelViewSet):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    # permission_classes = [IsStaffOrReadOnly]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['title', 'description']
-    ordering_fields = ['created_at', 'rating', 'price']
-
-    def get_serializer_class(self):
-        if self.action == 'list':
-            return CourseListSerializer
-        return CourseDetailSerializer
+    ordering_fields = ['title', 'created_at']
+    ordering = ['title']
 
     @action(detail=True, methods=['get'])
-    def chapters(self, request):
-        course = self.get_object()
-        chapters = course.get_active_chapters()
-        serializer = ChapterSerializer(chapters, many=True)
+    def courses(self, request, pk=None):
+        category = self.get_object()
+        courses = category.courses.filter(is_active=True)
+        serializer = CourseSerializer(courses, many=True)
         return Response(serializer.data)
 
 
-class LessonViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Lesson.objects.filter(is_active=True)
+class CourseViewSet(viewsets.ModelViewSet):
+    queryset = Course.objects.all()
+    serializer_class = CourseSerializer
+    permission_classes = [IsCourseAuthorOrReadOnly]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_class = CourseFilter
+    search_fields = ['title', 'description', 'authors__username']
+    ordering_fields = ['title', 'created_at', 'price', 'rating']
+    ordering = ['-created_at']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        user = self.request.user
+
+        if not user.is_authenticated or not user.is_staff:
+            queryset = queryset.filter(is_published=True, is_active=True)
+
+        return queryset
+
+    @action(detail=True, methods=['get'])
+    def chapters(self, request, pk=None):
+        course = self.get_object()
+        chapters = course.chapters.filter(is_active=True)
+        serializer = ChapterSerializer(chapters, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def add_categories(self, request, pk=None):
+        """
+        Add additional categories to a course
+        Expects a list of category IDs in the request body:
+        {
+            "category_ids": [1, 2, 3]
+        }
+        """
+        course = self.get_object()
+        category_ids = request.data.get('category_ids', [])
+
+        try:
+            categories = Category.objects.filter(id__in=category_ids)
+            if len(categories) != len(category_ids):
+                return Response(
+                    {'error': 'One or more category IDs are invalid'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Add new categories without removing existing ones
+            course.categories.add(*categories)
+            return Response({
+                'status': 'success',
+                'categories': CategorySerializer(course.categories.all(), many=True).data
+            })
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    @action(detail=True, methods=['post'])
+    def remove_categories(self, request, pk=None):
+        """
+        Remove categories from a course
+        Expects a list of category IDs in the request body:
+        {
+            "category_ids": [1, 2, 3]
+        }
+        """
+        course = self.get_object()
+        category_ids = request.data.get('category_ids', [])
+
+        try:
+            categories = Category.objects.filter(id__in=category_ids)
+            course.categories.remove(*categories)
+            return Response({
+                'status': 'success',
+                'categories': CategorySerializer(course.categories.all(), many=True).data
+            })
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    def perform_create(self, serializer):
+        """Set author when creating a course"""
+        serializer.save(authors=[self.request.user])
+
+    @action(detail=True, methods=['post'])
+    def publish(self, request, pk=None):
+        course = self.get_object()
+        course.is_published = not course.is_published
+        course.save()
+        return Response({
+            'status': 'success',
+            'is_published': course.is_published
+        })
+
+    @action(detail=True, methods=['get'])
+    def statistics(self, request, pk=None):
+        course = self.get_object()
+        return Response({
+            'total_chapters': course.chapters.count(),
+            'total_lessons': Lesson.objects.filter(chapter__course=course).count(),
+        })
+
+
+class ChapterViewSet(viewsets.ModelViewSet):
+    queryset = Chapter.objects.all()
+    serializer_class = ChapterSerializer
+    permission_classes = [IsAuthorOrReadOnly]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_class = ChapterFilter
+    search_fields = ['title', 'description']
+    ordering_fields = ['order', 'created_at']
+    ordering = ['order']
+
+    def get_queryset(self):
+        """Filter chapters based on course"""
+        queryset = super().get_queryset()
+        course_id = self.request.query_params.get('course_id', None)
+        if course_id:
+            queryset = queryset.filter(course_id=course_id)
+        return queryset
+
+    @action(detail=True, methods=['get'])
+    def lessons(self, request, pk=None):
+        chapter = self.get_object()
+        lessons = chapter.lessons.filter(is_active=True)
+        serializer = LessonSerializer(lessons, many=True)
+        return Response(serializer.data)
+
+    def perform_create(self, serializer):
+        course = serializer.validated_data['course']
+        if not serializer.validated_data.get('order'):
+            last_order = course.chapters.aggregate(models.Max('order'))['order__max']
+            serializer.save(order=last_order + 1 if last_order else 1)
+        else:
+            serializer.save()
+
+
+class LessonViewSet(viewsets.ModelViewSet):
+    queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ['lesson_type', 'is_required']
+    permission_classes = [IsAuthorOrReadOnly]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_class = LessonFilter
+    search_fields = ['title', 'description']
     ordering_fields = ['order', 'created_at']
+    ordering = ['order']
 
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        chapter_id = self.request.query_params.get('chapter', None)
-        if chapter_id:
-            queryset = queryset.filter(chapter_id=chapter_id)
-        return queryset
+    @action(detail=True, methods=['post'])
+    def reorder_slides(self, request, pk=None):
+        """Reorder slides in the lesson"""
+        lesson = self.get_object()
+        slide_orders = request.data.get('slide_orders', [])
 
+        if not slide_orders:
+            return Response(
+                {'error': 'No slide orders provided'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-class SlideViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Slide.objects.filter(is_active=True)
-    serializer_class = SlideSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ['type', 'is_required']
-    ordering_fields = ['order', 'created_at']
+        for order_data in slide_orders:
+            slide = get_object_or_404(Slide, id=order_data['slide_id'])
+            slide.order = order_data['order']
+            slide.save()
 
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        lesson_id = self.request.query_params.get('lesson', None)
-        if lesson_id:
-            queryset = queryset.filter(lesson_id=lesson_id)
-        return queryset
+        return Response({'status': 'success'})
