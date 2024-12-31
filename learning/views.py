@@ -6,19 +6,21 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from .filters import (
-    CourseFilter, ChapterFilter, LessonFilter
+    CourseFilter, ChapterFilter, LessonFilter,
+    QuestionFilter, SlideFilter
 )
 from .models import (
     Category, Course, Chapter, Lesson,
-    Slide
+    Editor, BaseQuestion, Choice, Slide
 )
-from .pagination import StandardResultsSetPagination
 from .permissions import (
-    IsAuthorOrReadOnly, IsCourseAuthorOrReadOnly
+    IsAuthorOrReadOnly, IsStaffOrReadOnly,
+    IsCourseAuthorOrReadOnly
 )
 from .serializers import (
     CategorySerializer, CourseSerializer, ChapterSerializer,
-    LessonSerializer
+    LessonSerializer, EditorSerializer, BaseQuestionSerializer,
+    ChoiceSerializer, SlideSerializer
 )
 
 
@@ -43,7 +45,6 @@ class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
     permission_classes = [IsCourseAuthorOrReadOnly]
-    pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class = CourseFilter
     search_fields = ['title', 'description', 'authors__username']
@@ -208,3 +209,79 @@ class LessonViewSet(viewsets.ModelViewSet):
             slide.save()
 
         return Response({'status': 'success'})
+
+
+class EditorViewSet(viewsets.ModelViewSet):
+    queryset = Editor.objects.all()
+    serializer_class = EditorSerializer
+    permission_classes = [IsStaffOrReadOnly]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['initial_code']
+    ordering_fields = ['created_at']
+    ordering = ['-created_at']
+
+
+class BaseQuestionViewSet(viewsets.ModelViewSet):
+    queryset = BaseQuestion.objects.all()
+    serializer_class = BaseQuestionSerializer
+    permission_classes = [IsStaffOrReadOnly]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_class = QuestionFilter
+    search_fields = ['title', 'description']
+    ordering_fields = ['created_at']
+    ordering = ['-created_at']
+
+    @action(detail=True, methods=['post'])
+    def add_choice(self, request, pk=None):
+        """Add a new choice to the question"""
+        question = self.get_object()
+        serializer = ChoiceSerializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save(question=question)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ChoiceViewSet(viewsets.ModelViewSet):
+    queryset = Choice.objects.all()
+    serializer_class = ChoiceSerializer
+    permission_classes = [IsStaffOrReadOnly]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['text']
+    ordering_fields = ['order']
+    ordering = ['order']
+
+
+class SlideViewSet(viewsets.ModelViewSet):
+    queryset = Slide.objects.all()
+    serializer_class = SlideSerializer
+    permission_classes = [IsAuthorOrReadOnly]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_class = SlideFilter
+    search_fields = ['title', 'content']
+    ordering_fields = ['order', 'created_at']
+    ordering = ['order']
+
+    @action(detail=True, methods=['post'])
+    def toggle_activity(self, request, pk=None):
+        """Toggle slide active status"""
+        slide = self.get_object()
+        slide.is_active = not slide.is_active
+        slide.save()
+        return Response({
+            'status': 'success',
+            'is_active': slide.is_active
+        })
+
+    @action(detail=True, methods=['post'])
+    def increment_comments(self, request, pk=None):
+        """Increment comments count"""
+        slide = self.get_object()
+        slide.comments_count += 1
+        slide.save()
+        return Response({
+            'status': 'success',
+            'comments_count': slide.comments_count
+        })
