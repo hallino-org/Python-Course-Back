@@ -1,173 +1,131 @@
-# users/admin.py
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.utils.translation import gettext_lazy as _
-from . import models
+
+from .models import User, Author, UserCourse, Streak, UserResponse, Staff
 
 
-@admin.register(models.User)
-class UserAdmin(BaseUserAdmin):
-    list_display = (
-        'email',
-        'username',
-        'full_name',
-        'phone_number',
-        'type',
-        'level',
-        'is_active',
-        'is_staff',
-        'created_at'
-    )
-
-    list_filter = (
-        'is_active',
-        'is_staff',
-        'is_superuser',
-        'is_confirmed',
-        'type',
-        'level',
-        'gender',
-        'created_at',
-    )
-
-    search_fields = (
-        'email',
-        'username',
-        'firstname',
-        'lastname',
-        'phone_number',
-    )
-
+@admin.register(User)
+class UserAdmin(admin.ModelAdmin):
+    list_display = ('email', 'full_name', 'phone_number', 'type', 'level', 'is_active', 'is_confirmed', 'is_staff')
+    list_filter = ('is_active', 'is_confirmed', 'is_staff', 'type', 'level', 'gender')
+    search_fields = ('email', 'firstname', 'lastname', 'phone_number')
     ordering = ('-created_at',)
+
+    fieldsets = (
+        ('Personal Info', {
+            'fields': ('email', 'password', 'firstname', 'lastname', 'phone_number', 'gender', 'birth_date')
+        }),
+        ('Status', {
+            'fields': ('type', 'level', 'is_active', 'is_confirmed', 'is_staff', 'expire_date')
+        }),
+        ('Important Dates', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
 
     readonly_fields = ('created_at', 'updated_at')
 
-    fieldsets = (
-        (None, {
-            'fields': ('email', 'password')
-        }),
-        (_('Personal Info'), {
-            'fields': (
-                'username',
-                'firstname',
-                'lastname',
-                'gender',
-                'phone_number',
-                'birth_date',
+    def get_fieldsets(self, request, obj=None):
+        if not obj:
+            return (
+                (None, {
+                    'classes': ('wide',),
+                    'fields': ('email', 'firstname', 'lastname', 'phone_number', 'password1', 'password2'),
+                }),
             )
-        }),
-        (_('Status'), {
-            'fields': (
-                'type',
-                'level',
-                'is_confirmed',
-            )
-        }),
-        (_('Permissions'), {
-            'fields': (
-                'is_active',
-                'is_staff',
-                'is_superuser',
-                'groups',
-                'user_permissions',
-            ),
-        }),
-        (_('Important dates'), {
-            'fields': (
-                'last_login',
-                'expire_date',
-                'created_at',
-                'updated_at',
-            )
-        }),
-    )
-
-    add_fieldsets = (
-        (None, {
-            'classes': ('wide',),
-            'fields': (
-                'email',
-                'username',
-                'firstname',
-                'lastname',
-                'gender',
-                'phone_number',
-                'birth_date',
-                'password1',
-                'password2',
-            ),
-        }),
-    )
-
-    def full_name(self, obj):
-        return obj.full_name
-
-    full_name.short_description = _('Full Name')
-
-    def get_readonly_fields(self, request, obj=None):
-        if obj:  # editing an existing object
-            return self.readonly_fields + ('email', 'username')
-        return self.readonly_fields
+        return self.fieldsets
 
 
-@admin.register(models.Author)
+@admin.register(Author)
 class AuthorAdmin(admin.ModelAdmin):
-    list_display = (
-        'get_full_name',
-        'get_email',
-        'total_courses',
-        'get_user_type',
-    )
-
-    list_filter = (
-        'total_courses',
-        'user__type',
-        'user__is_active',
-    )
-
-    search_fields = (
-        'user__email',
-        'user__username',
-        'user__firstname',
-        'user__lastname',
-        'bio',
-    )
-
+    list_display = ('user_full_name', 'specialization_count')
+    search_fields = ('user__firstname', 'user__lastname', 'user__email', 'bio')
+    filter_horizontal = ('specializations',)
     raw_id_fields = ('user',)
 
-    fieldsets = (
-        (None, {
-            'fields': ('user', 'bio')
-        }),
-        (_('Author Info'), {
-            'fields': (
-                'specializations',
-                'total_courses',
-            )
-        }),
-    )
-
-    def get_full_name(self, obj):
+    def user_full_name(self, obj):
         return obj.user.full_name
 
-    get_full_name.short_description = _('Author Name')
-    get_full_name.admin_order_field = 'user__firstname'
+    user_full_name.short_description = 'Author Name'
 
-    def get_email(self, obj):
+    def specialization_count(self, obj):
+        return obj.specializations.count()
+
+    specialization_count.short_description = 'Specializations'
+
+
+@admin.register(UserCourse)
+class UserCourseAdmin(admin.ModelAdmin):
+    list_display = ('user', 'progress', 'score', 'rank', 'course_count')
+    list_filter = ('progress', 'rank')
+    search_fields = ('user__email', 'user__firstname', 'user__lastname')
+    raw_id_fields = ('user',)
+    filter_horizontal = ('courses',)
+
+    def course_count(self, obj):
+        return obj.courses.count()
+
+    course_count.short_description = 'Number of Courses'
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('user')
+
+
+@admin.register(Streak)
+class StreakAdmin(admin.ModelAdmin):
+    list_display = ('user', 'current_streak', 'highest_streak', 'type', 'last_interaction')
+    list_filter = ('type', 'last_interaction')
+    search_fields = ('user__email', 'user__firstname', 'user__lastname')
+    raw_id_fields = ('user',)
+    readonly_fields = ('current_streak', 'highest_streak', 'last_interaction')
+
+    actions = ['reset_streaks']
+
+    def reset_streaks(self, request, queryset):
+        queryset.update(current_streak=0, highest_streak=0, last_interaction=None)
+
+    reset_streaks.short_description = "Reset selected streaks"
+
+
+@admin.register(UserResponse)
+class UserResponseAdmin(admin.ModelAdmin):
+    list_display = ('user', 'submitted_at', 'question_count', 'has_text_answer', 'choice_count')
+    list_filter = ('submitted_at',)
+    search_fields = ('user__email', 'text_answer')
+    raw_id_fields = ('user',)
+    filter_horizontal = ('question', 'choice_answers')
+    readonly_fields = ('submitted_at',)
+
+    def question_count(self, obj):
+        return obj.question.count()
+
+    question_count.short_description = 'Questions'
+
+    def has_text_answer(self, obj):
+        return bool(obj.text_answer)
+
+    has_text_answer.boolean = True
+    has_text_answer.short_description = 'Has Text Answer'
+
+    def choice_count(self, obj):
+        return obj.choice_answers.count()
+
+    choice_count.short_description = 'Selected Choices'
+
+
+@admin.register(Staff)
+class StaffAdmin(admin.ModelAdmin):
+    list_display = ('user_full_name', 'user_email', 'role_type')
+    list_filter = ('role_type',)
+    search_fields = ('user__email', 'user__firstname', 'user__lastname')
+    raw_id_fields = ('user',)
+
+    def user_full_name(self, obj):
+        return obj.user.full_name
+
+    user_full_name.short_description = 'Staff Name'
+
+    def user_email(self, obj):
         return obj.user.email
 
-    get_email.short_description = _('Email')
-    get_email.admin_order_field = 'user__email'
-
-    def get_user_type(self, obj):
-        return obj.user.get_type_display()
-
-    get_user_type.short_description = _('User Type')
-    get_user_type.admin_order_field = 'user__type'
-
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "user":
-            kwargs["queryset"] = models.User.objects.filter(
-                is_active=True
-            ).order_by('email')
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+    user_email.short_description = 'Email'
