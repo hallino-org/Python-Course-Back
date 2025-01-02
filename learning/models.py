@@ -223,6 +223,7 @@ class BaseQuestion(models.Model):
     editor = models.ForeignKey(
         Editor,
         on_delete=models.CASCADE,
+        blank=True,
         null=True,
         related_name='editor_for_questions'
     )
@@ -316,10 +317,10 @@ class Slide(models.Model):
         related_name='questions_slides'
     )
     editor = models.ForeignKey(
-        'users.Staff',
+        Editor,
         on_delete=models.SET_NULL,
         null=True,
-        related_name='edited_slides'
+        related_name='editor_slides'
     )
     order = models.PositiveIntegerField()
 
