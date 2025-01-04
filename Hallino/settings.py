@@ -98,21 +98,21 @@ REST_FRAMEWORK = {
 
 WSGI_APPLICATION = 'Hallino.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': os.environ.get('SQL_ENGINE', "django.db.backends.postgresql"),
-        'NAME': os.environ.get('SQL_DATABASE', 'hallino'),
-        'USER': os.environ.get('SQL_USER', 'postgres'),
-        'PASSWORD': os.environ.get('SQL_PASSWORD', 'Af@4537958'),
-        'HOST': os.environ.get('SQL_HOST', 'localhost'),
-        'PORT': os.environ.get('SQL_PORT', 5432),
-    }
-}
-
 # DATABASES = {
-#     'default': dj_database_url.config(
-#         default=os.environ.get('DATABASE_URL'), engine='django.db.backends.postgresql')
+#     'default': {
+#         'ENGINE': os.environ.get('SQL_ENGINE', "django.db.backends.postgresql"),
+#         'NAME': os.environ.get('SQL_DATABASE', 'hallino'),
+#         'USER': os.environ.get('SQL_USER', 'postgres'),
+#         'PASSWORD': os.environ.get('SQL_PASSWORD', 'Af@4537958'),
+#         'HOST': os.environ.get('SQL_HOST', 'localhost'),
+#         'PORT': os.environ.get('SQL_PORT', 5432),
+#     }
 # }
+
+DATABASES = {
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL'), engine='django.db.backends.postgresql')
+}
 
 AUTH_USER_MODEL = 'users.User'
 
