@@ -121,7 +121,7 @@ class Author(models.Model):
     specializations = models.ManyToManyField(
         learning.models.Category,
         help_text="Specializations of author",
-        related_name='author', null=True, blank=True)
+        related_name='author')
 
     def __str__(self):
         return self.user.full_name
