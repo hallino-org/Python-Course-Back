@@ -105,15 +105,16 @@ class SlideSerializer(serializers.ModelSerializer):
 
 
 class LessonSerializer(serializers.ModelSerializer):
-    # slides = SlideSerializer(many=True, read_only=True)
-    active_slides = serializers.SerializerMethodField()
+    slides = SlideSerializer(many=True, read_only=True)
+
+    # active_slides = serializers.SerializerMethodField()
 
     class Meta:
         model = Lesson
         fields = [
             'id', 'chapter', 'title', 'description', 'order',
             'duration', 'is_required', 'is_active', 'score',
-            'lesson_type', 'active_slides',
+            'lesson_type', 'slides',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at']
