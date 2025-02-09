@@ -565,9 +565,10 @@
 #     )
 # learning/admin.py
 from django.contrib import admin
-from django.utils.html import format_html
-from django.urls import reverse
 from django.db.models import Count
+from django.urls import reverse
+from django.utils.html import format_html
+
 from .models import (
     Category, Course, Chapter, Lesson,
     Editor, BaseQuestion, Choice, Slide
@@ -582,6 +583,7 @@ class CategoryAdmin(admin.ModelAdmin):
 
     def courses_count(self, obj):
         return obj.courses.count()
+
     courses_count.short_description = 'Courses'
 
     def get_queryset(self, request):
@@ -601,6 +603,8 @@ class ChapterInline(admin.TabularInline):
 
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
+    prepopulated_fields = {'slug': ('title',)}
+
     list_display = [
         'title', 'level', 'language', 'price',
         'is_published', 'is_active', 'rating',
@@ -610,7 +614,7 @@ class CourseAdmin(admin.ModelAdmin):
         'level', 'language', 'is_published',
         'is_active', 'categories'
     ]
-    search_fields = ['title', 'description', 'authors__user__email']
+    search_fields = ['title', 'slug', 'description', 'authors__user__email']
     filter_horizontal = ['categories', 'authors', 'requirements']
     readonly_fields = ['created_at', 'updated_at', 'rating']
     list_editable = ['is_published', 'is_active']
@@ -650,20 +654,24 @@ class CourseAdmin(admin.ModelAdmin):
                 ) for author in authors
             )
         )
+
     view_authors.short_description = 'Authors'
 
     def chapters_count(self, obj):
         return obj.chapters.count()
+
     chapters_count.short_description = 'Chapters'
 
     actions = ['publish_courses', 'unpublish_courses']
 
     def publish_courses(self, request, queryset):
         queryset.update(is_published=True)
+
     publish_courses.short_description = 'Publish selected courses'
 
     def unpublish_courses(self, request, queryset):
         queryset.update(is_published=False)
+
     unpublish_courses.short_description = 'Unpublish selected courses'
 
 
@@ -690,6 +698,7 @@ class ChapterAdmin(admin.ModelAdmin):
 
     def lessons_count(self, obj):
         return obj.lessons.count()
+
     lessons_count.short_description = 'Lessons'
 
 
@@ -720,6 +729,7 @@ class LessonAdmin(admin.ModelAdmin):
 
     def slides_count(self, obj):
         return obj.slides.count()
+
     slides_count.short_description = 'Slides'
 
 
@@ -754,16 +764,19 @@ class BaseQuestionAdmin(admin.ModelAdmin):
 
     def has_image(self, obj):
         return bool(obj.image)
+
     has_image.boolean = True
     has_image.short_description = 'Has Image'
 
     def has_video(self, obj):
         return bool(obj.video_url)
+
     has_video.boolean = True
     has_video.short_description = 'Has Video'
 
     def choices_count(self, obj):
         return obj.choices.count()
+
     choices_count.short_description = 'Choices'
 
 
@@ -794,5 +807,6 @@ class SlideAdmin(admin.ModelAdmin):
 
     def has_question(self, obj):
         return bool(obj.question)
+
     has_question.boolean = True
     has_question.short_description = 'Has Question'

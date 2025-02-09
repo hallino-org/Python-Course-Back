@@ -1,6 +1,7 @@
 from django.apps import AppConfig
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
+from django.utils.text import slugify
 
 from learning.learning_constants import LearningConstants
 
@@ -117,6 +118,14 @@ class Course(models.Model):
 
     def get_active_chapters(self):
         return self.chapters.filter(is_active=True).order_by('order')
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.title)
+            org_slug = self.slug
+            if Course.objects.filter(slug=self.slug).exists():
+                self.slug = f"{org_slug}-{self.id}"
+        super().save(*args, **kwargs)
 
 
 class Chapter(models.Model):
