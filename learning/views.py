@@ -27,22 +27,13 @@ from .serializers import (
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    # permission_classes = [IsStaffOrReadOnly]
+    permission_classes = [IsStaffOrReadOnly]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['title', 'description']
+    search_fields = ['title', 'slug', 'description']
     ordering_fields = ['title', 'created_at']
     ordering = ['title']
 
-    @action(detail=True, methods=['get'])
-    def courses(self, request, pk=None):
-        category = self.get_object()
-        courses = category.courses.filter(is_active=True)
-        serializer = CourseSerializer(courses, many=True)
-        return Response(serializer.data)
-
-
 class CourseViewSet(viewsets.ModelViewSet):
-    queryset = Course.objects.all()
     serializer_class = CourseSerializer
     permission_classes = [IsCourseAuthorOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -52,13 +43,11 @@ class CourseViewSet(viewsets.ModelViewSet):
     ordering = ['-created_at']
 
     def get_queryset(self):
-        queryset = super().get_queryset()
-        user = self.request.user
+        category_pk = self.kwargs.get('category_pk')
+        if category_pk:
+            return Course.objects.filter(categories__id=category_pk, is_published=True, is_active=True)
 
-        if not user.is_authenticated or not user.is_staff:
-            queryset = queryset.filter(is_published=True, is_active=True)
-
-        return queryset
+        return Course.objects.filter(is_published=True, is_active=True)
 
     @action(detail=True, methods=['get'])
     def chapters(self, request, pk=None):
@@ -123,10 +112,6 @@ class CourseViewSet(viewsets.ModelViewSet):
                 {'error': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
-    def perform_create(self, serializer):
-        """Set author when creating a course"""
-        serializer.save(authors=[self.request.user])
 
     @action(detail=True, methods=['post'])
     def publish(self, request, pk=None):
