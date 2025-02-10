@@ -129,29 +129,14 @@ class LessonSerializer(serializers.ModelSerializer):
 
 
 class ChapterSerializer(serializers.ModelSerializer):
-    # lessons = LessonSerializer(many=True, read_only=True)
-    # active_lessons = serializers.SerializerMethodField()
-    active_lessons_ids = serializers.PrimaryKeyRelatedField(many=True, source='lessons', read_only=True)
-
     class Meta:
         model = Chapter
         fields = [
             'id', 'course', 'title', 'description', 'order',
             'image', 'estimated_time', 'is_active',
-            'active_lessons_ids', 'created_at', 'updated_at'
+            'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at']
-
-    # def get_active_lessons(self, obj):
-    #     return LessonSerializer(
-    #         obj.get_active_lessons(),
-    #         many=True
-    #     ).data
-
-    @staticmethod
-    def get_active_lessons_ids(obj):
-        active_lessons = obj.get_active_lessons()
-        return [lesson.id for lesson in active_lessons]
 
 
 class CourseSerializer(serializers.ModelSerializer):

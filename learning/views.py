@@ -33,6 +33,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     ordering_fields = ['title', 'created_at']
     ordering = ['title']
 
+
 class CourseViewSet(viewsets.ModelViewSet):
     serializer_class = CourseSerializer
     permission_classes = [IsCourseAuthorOrReadOnly]
@@ -48,13 +49,6 @@ class CourseViewSet(viewsets.ModelViewSet):
             return Course.objects.filter(categories__id=category_pk, is_published=True, is_active=True)
 
         return Course.objects.filter(is_published=True, is_active=True)
-
-    @action(detail=True, methods=['get'])
-    def chapters(self, request, pk=None):
-        course = self.get_object()
-        chapters = course.chapters.filter(is_active=True)
-        serializer = ChapterSerializer(chapters, many=True)
-        return Response(serializer.data)
 
     @action(detail=True, methods=['post'])
     def add_categories(self, request, pk=None):
@@ -133,7 +127,6 @@ class CourseViewSet(viewsets.ModelViewSet):
 
 
 class ChapterViewSet(viewsets.ModelViewSet):
-    queryset = Chapter.objects.all()
     serializer_class = ChapterSerializer
     permission_classes = [IsAuthorOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -143,12 +136,11 @@ class ChapterViewSet(viewsets.ModelViewSet):
     ordering = ['order']
 
     def get_queryset(self):
-        """Filter chapters based on course"""
-        queryset = super().get_queryset()
-        course_id = self.request.query_params.get('course_id', None)
-        if course_id:
-            queryset = queryset.filter(course_id=course_id)
-        return queryset
+        course_pk = self.kwargs.get('course_pk')
+        if course_pk:
+            return Chapter.objects.filter(course__id=course_pk, is_active=True)
+
+        return Chapter.objects.filter(is_active=True)
 
     @action(detail=True, methods=['get'])
     def lessons(self, request, pk=None):
