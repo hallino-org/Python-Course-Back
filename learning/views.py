@@ -231,7 +231,6 @@ class ChoiceViewSet(viewsets.ModelViewSet):
 
 
 class SlideViewSet(viewsets.ModelViewSet):
-    queryset = Slide.objects.all()
     serializer_class = SlideSerializer
     permission_classes = [IsAuthorOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -239,6 +238,13 @@ class SlideViewSet(viewsets.ModelViewSet):
     search_fields = ['title', 'content']
     ordering_fields = ['order', 'created_at']
     ordering = ['order']
+
+    def get_queryset(self):
+        lesson_pk = self.kwargs.get('lesson_pk')
+        if lesson_pk:
+            return Slide.objects.filter(lesson__id=lesson_pk, is_active=True)
+
+        return Slide.objects.filter(is_active=True)
 
     @action(detail=True, methods=['post'])
     def toggle_activity(self, request, pk=None):

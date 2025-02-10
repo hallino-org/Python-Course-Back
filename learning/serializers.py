@@ -84,16 +84,13 @@ class BaseQuestionSerializer(serializers.ModelSerializer):
 
 
 class SlideSerializer(serializers.ModelSerializer):
-    question_detail = BaseQuestionSerializer(source='question', read_only=True)
-
     class Meta:
         model = Slide
         fields = [
             'id', 'lesson', 'title', 'content', 'total_marks',
             'type', 'time_limit', 'is_active', 'is_required',
             'hints', 'alt_text', 'image', 'video_url',
-            'question', 'question_detail',
-            'editor', 'order', 'created_at', 'updated_at'
+            'question', 'editor', 'order', 'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at']
 
