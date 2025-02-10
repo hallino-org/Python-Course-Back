@@ -49,7 +49,7 @@ class Course(models.Model):
         related_name='courses',
         verbose_name='Categories'
     )
-    duration = models.PositiveIntegerField()
+    duration = models.PositiveIntegerField(help_text='duration in minutes')
     level = models.IntegerField(
         null=True,
         blank=True,
