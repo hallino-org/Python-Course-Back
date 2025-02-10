@@ -142,13 +142,6 @@ class ChapterViewSet(viewsets.ModelViewSet):
 
         return Chapter.objects.filter(is_active=True)
 
-    @action(detail=True, methods=['get'])
-    def lessons(self, request, pk=None):
-        chapter = self.get_object()
-        lessons = chapter.lessons.filter(is_active=True)
-        serializer = LessonSerializer(lessons, many=True)
-        return Response(serializer.data)
-
     def perform_create(self, serializer):
         course = serializer.validated_data['course']
         if not serializer.validated_data.get('order'):
@@ -159,7 +152,6 @@ class ChapterViewSet(viewsets.ModelViewSet):
 
 
 class LessonViewSet(viewsets.ModelViewSet):
-    queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
     permission_classes = [IsAuthorOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -167,6 +159,13 @@ class LessonViewSet(viewsets.ModelViewSet):
     search_fields = ['title', 'description']
     ordering_fields = ['order', 'created_at']
     ordering = ['order']
+
+    def get_queryset(self):
+        chapter_pk = self.kwargs.get('chapter_pk')
+        if chapter_pk:
+            return Lesson.objects.filter(chapter__id=chapter_pk, is_active=True)
+
+        return Lesson.objects.filter(is_active=True)
 
     @action(detail=True, methods=['post'])
     def reorder_slides(self, request, pk=None):
