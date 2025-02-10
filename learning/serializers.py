@@ -1,6 +1,7 @@
 from django.utils.text import slugify
 from rest_framework import serializers
 
+from users.models import Author
 from .models import (
     Category, Course, Chapter, Lesson, Editor,
     BaseQuestion, Choice, Slide
@@ -58,7 +59,8 @@ class BaseQuestionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at', 'updated_at']
 
-    def get_correct_choices(self, obj):
+    @staticmethod
+    def get_correct_choices(obj):
         return ChoiceSerializer(
             obj.choices.filter(is_correct=True),
             many=True
@@ -146,15 +148,23 @@ class ChapterSerializer(serializers.ModelSerializer):
     #         many=True
     #     ).data
 
-    def get_active_lessons_ids(self, obj):
+    @staticmethod
+    def get_active_lessons_ids(obj):
         active_lessons = obj.get_active_lessons()
         return [lesson.id for lesson in active_lessons]
 
 
 class CourseSerializer(serializers.ModelSerializer):
-    # chapters = ChapterSerializer(many=True, read_only=True)
-    active_chapters = serializers.SerializerMethodField()
-    categories = CategorySerializer(many=True, read_only=True)
+    categories = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Category.objects.all(),
+        required=False
+    )
+    authors = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Author.objects.all(),
+        required=False
+    )
     requirements = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=Course.objects.all(),
@@ -168,18 +178,12 @@ class CourseSerializer(serializers.ModelSerializer):
             'categories', 'duration', 'level', 'price',
             'start_date', 'end_date', 'is_published',
             'is_active', 'logo', 'video_url', 'requirements',
-            'active_chapters', 'language', 'rating',
+            'language', 'rating',
             'created_at', 'updated_at'
         ]
         read_only_fields = [
             'created_at', 'updated_at', 'rating', 'slug'
         ]
-
-    def get_active_chapters(self, obj):
-        return ChapterSerializer(
-            obj.get_active_chapters(),
-            many=True
-        ).data
 
     def validate(self, data):
         if data.get('start_date') and data.get('end_date'):
