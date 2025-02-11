@@ -1,12 +1,13 @@
 from django.urls import path, include
-from rest_framework.routers import DefaultRouter
+from rest_framework_nested import routers
+
 from .views import (
     CategoryViewSet, CourseViewSet, ChapterViewSet,
     LessonViewSet, EditorViewSet, BaseQuestionViewSet,
     ChoiceViewSet, SlideViewSet
 )
 
-router = DefaultRouter()
+router = routers.DefaultRouter()
 
 # Register ViewSets
 router.register(r'categories', CategoryViewSet, basename='category')
@@ -18,13 +19,37 @@ router.register(r'questions', BaseQuestionViewSet, basename='question')
 router.register(r'choices', ChoiceViewSet, basename='choice')
 router.register(r'slides', SlideViewSet, basename='slide')
 
+categories_router = routers.NestedDefaultRouter(router, r'categories', lookup='category')
+categories_router.register(r'courses', CourseViewSet, basename='category-courses')
+
+courses_router = routers.NestedDefaultRouter(router, r'courses', lookup='course')
+courses_router.register(r'chapters', ChapterViewSet, basename='course-chapters')
+
+chapters_router = routers.NestedDefaultRouter(router, r'chapters', lookup='chapter')
+chapters_router.register(r'lessons', LessonViewSet, basename='chapter-lessons')
+
+lessons_router = routers.NestedDefaultRouter(router, r'lessons', lookup='lesson')
+lessons_router.register(r'slides', SlideViewSet, basename='lesson-slides')
+
+slides_router = routers.NestedDefaultRouter(router, r'slides', lookup='slide')
+slides_router.register(r'questions', BaseQuestionViewSet, basename='slide-questions')
+slides_router.register(r'editors', EditorViewSet, basename='slide-editors')
+
+questions_router = routers.NestedDefaultRouter(router, r'questions', lookup='question')
+questions_router.register(r'choices', ChoiceViewSet, basename='question-choices')
+
 app_name = 'learning'
 
 urlpatterns = [
     # Router URLs
     path('', include(router.urls)),
+    path('', include(categories_router.urls)),
+    path('', include(courses_router.urls)),
+    path('', include(chapters_router.urls)),
+    path('', include(lessons_router.urls)),
+    path('', include(slides_router.urls)),
+    path('', include(questions_router.urls)),
 
-    # Custom Course URLs
     path('courses/<int:pk>/publish/',
          CourseViewSet.as_view({'post': 'publish'}),
          name='course-publish'),
@@ -32,22 +57,14 @@ urlpatterns = [
          CourseViewSet.as_view({'get': 'statistics'}),
          name='course-statistics'),
 
-    # Custom Category URLs
-    path('categories/<int:pk>/courses/',
-         CategoryViewSet.as_view({'get': 'courses'}),
-         name='category-courses'),
-
-    # Custom Lesson URLs
     path('lessons/<int:pk>/reorder-slides/',
          LessonViewSet.as_view({'post': 'reorder_slides'}),
          name='lesson-reorder-slides'),
 
-    # Custom Question URLs
     path('questions/<int:pk>/add-choice/',
          BaseQuestionViewSet.as_view({'post': 'add_choice'}),
          name='question-add-choice'),
 
-    # Custom Slide URLs
     path('slides/<int:pk>/toggle-activity/',
          SlideViewSet.as_view({'post': 'toggle_activity'}),
          name='slide-toggle-activity'),
