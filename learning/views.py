@@ -198,7 +198,6 @@ class EditorViewSet(viewsets.ModelViewSet):
 
 
 class BaseQuestionViewSet(viewsets.ModelViewSet):
-    queryset = BaseQuestion.objects.all()
     serializer_class = BaseQuestionSerializer
     permission_classes = [IsStaffOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -206,6 +205,13 @@ class BaseQuestionViewSet(viewsets.ModelViewSet):
     search_fields = ['title', 'description']
     ordering_fields = ['created_at']
     ordering = ['-created_at']
+
+    def get_queryset(self):
+        slide_pk = self.kwargs.get('slide_pk')
+        if slide_pk:
+            return BaseQuestion.objects.filter(questions_slides=slide_pk)
+
+        return BaseQuestion.objects.all()
 
     @action(detail=True, methods=['post'])
     def add_choice(self, request, pk=None):
