@@ -1,4 +1,6 @@
 from django.db import models
+from typing import cast, Union
+from django.db.models.query import QuerySet
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, status, filters
