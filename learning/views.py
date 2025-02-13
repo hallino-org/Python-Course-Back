@@ -42,6 +42,8 @@ class CourseViewSet(viewsets.ModelViewSet):
     search_fields = ['title', 'description', 'authors__username']
     ordering_fields = ['title', 'created_at', 'price', 'rating']
     ordering = ['-created_at']
+    lookup_field = 'slug'
+    lookup_value_regex = '[0-9]+|[a-zA-Z0-9-]+'
 
     def get_queryset(self):
         category_pk = self.kwargs.get('category_pk')
@@ -49,6 +51,24 @@ class CourseViewSet(viewsets.ModelViewSet):
             return Course.objects.filter(categories__id=category_pk, is_published=True, is_active=True)
 
         return Course.objects.filter(is_published=True, is_active=True)
+
+    def get_object(self):
+        """
+        Get object by either slug or pk
+        """
+        queryset = self.get_queryset()
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        lookup_value = self.kwargs[lookup_url_kwarg]
+        typed_queryset = cast(Union[QuerySet[Course], type[Course]], queryset)
+
+        try:
+            lookup_value = int(lookup_value)
+            obj = get_object_or_404(typed_queryset, pk=lookup_value)
+        except ValueError:
+            obj = get_object_or_404(typed_queryset, slug=lookup_value)
+
+        self.check_object_permissions(self.request, obj)
+        return obj
 
     @action(detail=True, methods=['post'])
     def add_categories(self, request, pk=None):
