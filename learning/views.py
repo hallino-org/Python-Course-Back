@@ -260,7 +260,7 @@ class ChoiceViewSet(viewsets.ModelViewSet):
 
 class SlideViewSet(viewsets.ModelViewSet):
     serializer_class = SlideSerializer
-    permission_classes = [IsAuthorOrReadOnly]
+    permission_classes = [IsStaffOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class = SlideFilter
     search_fields = ['title', 'content']
