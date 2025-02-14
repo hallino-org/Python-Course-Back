@@ -89,7 +89,6 @@
         margin-left: 0;
         margin-right: 0;
     }
-
     [dir="rtl"] .aligned .vCheckboxLabel {
         padding: 1px 5px 0 0;
     }
@@ -102,7 +101,7 @@
         background-position: 0 -20px;
     }
 
-    [dir="rtl"] .selector-add {
+    [dir="rtl"] .selector-add  {
         background-position: 0 -40px;
     }
 

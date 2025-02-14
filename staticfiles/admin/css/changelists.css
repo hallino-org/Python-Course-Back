@@ -15,9 +15,7 @@
     width: 100%;
 }
 
-.change-list .hiddenfields {
-    display: none;
-}
+.change-list .hiddenfields { display:none; }
 
 .change-list .filtered table {
     border-right: none;
@@ -142,9 +140,9 @@
 }
 
 @media (forced-colors: active) {
-    #changelist-filter {
-        border: 1px solid;
-    }
+  #changelist-filter {
+      border: 1px solid;
+  }
 }
 
 #changelist-filter h2 {
@@ -277,7 +275,6 @@
     #changelist tbody tr.selected {
         background-color: SelectedItem;
     }
-
     #changelist tbody tr:has(.action-select:checked) {
         background-color: SelectedItem;
     }
