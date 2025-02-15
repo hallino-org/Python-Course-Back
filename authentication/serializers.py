@@ -16,6 +16,16 @@ class RegisterSerializer(ModelSerializer):
     class Meta(UserBaseSerializer.Meta):
         fields = UserBaseSerializer.Meta.fields + ['password']
 
+    def validate_email(self, value):
+        if value:
+            normalized_email = value.lower().strip()
+            if User.objects.filter(email=normalized_email).exclude(
+                    id=getattr(self.instance, 'id', None)
+            ).exists():
+                raise serializers.ValidationError("This email is already in use.")
+            return normalized_email
+        return value
+
     def validate(self, data):
         if data.get('password') != data.get('confirm_password'):
             raise serializers.ValidationError({
