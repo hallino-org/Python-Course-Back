@@ -51,6 +51,37 @@ class UserBaseSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("This email is already in use.")
             return normalized_email
         return value
+    
+    
+class UserCreateSerializer(UserBaseSerializer):
+    password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
+    confirm_password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
+
+    class Meta(UserBaseSerializer.Meta):
+        fields = UserBaseSerializer.Meta.fields + ['password', 'confirm_password']
+
+    def validate(self, data):
+        if data.get('password') != data.get('confirm_password'):
+            raise serializers.ValidationError({
+                'confirm_password': "Passwords do not match."
+            })
+
+        try:
+            password_validation.validate_password(data.get('password'))
+        except ValidationError as e:
+            raise serializers.ValidationError({
+                'password': list(e.messages)
+            })
+
+        return data
+
+    def create(self, validated_data):
+        validated_data.pop('confirm_password')
+        password = validated_data.pop('password')
+        user = User(**validated_data)
+        user.set_password(password)
+        user.save()
+        return user
 
 
 class LoginSerializer(serializers.Serializer):
