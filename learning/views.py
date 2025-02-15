@@ -268,11 +268,7 @@ class SlideViewSet(viewsets.ModelViewSet):
     ordering = ['order']
 
     def get_queryset(self):
-        lesson_pk = self.kwargs.get('lesson_pk')
-        if lesson_pk:
-            return Slide.objects.filter(lesson__id=lesson_pk, is_active=True)
-
-        return Slide.objects.filter(is_active=True)
+        return Slide.objects.filter(lesson__id=self.kwargs.get('lesson_pk'), is_active=True)
 
     @action(detail=True, methods=['post'])
     def toggle_activity(self, request, pk=None):
