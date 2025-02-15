@@ -1,39 +1,56 @@
-# users/serializers.py
 from django.contrib.auth import authenticate
+from django.forms import ValidationError
 from django.utils import timezone
 from rest_framework import serializers
 
+from django.contrib.auth import password_validation
 from learning.serializers import CategorySerializer, CourseSerializer
 from .models import User, Author, UserCourse, Streak, UserResponse, Staff
 
 
+
 class UserSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
-    confirm_password = serializers.CharField(write_only=True)
+    class Meta:
+        model = User
+        fields = ['id', 'email', 'first_name', 'last_name',
+                  'phone', 'user_type', 'is_active', 'date_joined']
+
+class UserBaseSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(source='get_full_name', read_only=True)
 
     class Meta:
         model = User
         fields = [
             'id', 'email', 'firstname', 'lastname', 'gender',
             'phone_number', 'birth_date', 'type', 'level',
-            'is_active', 'is_confirmed', 'password',
-            'confirm_password', 'created_at', 'updated_at',
+            'is_active', 'is_confirmed', 'created_at', 'updated_at',
             'expire_date', 'full_name'
         ]
         read_only_fields = ['is_active', 'is_confirmed', 'created_at', 'updated_at']
 
-    def validate(self, data):
-        if data.get('password') != data.get('confirm_password'):
-            raise serializers.ValidationError("Passwords don't match")
-        return data
+    def validate_phone(self, value):
+        if value:
+            normalized_phone = value.strip().replace(' ', '')
+            if not normalized_phone.startswith('+'):
+                normalized_phone = f'+{normalized_phone}'
 
-    def create(self, validated_data):
-        validated_data.pop('confirm_password')
-        password = validated_data.pop('password')
-        user = User(**validated_data)
-        user.set_password(password)
-        user.save()
-        return user
+            if User.objects.filter(phone=normalized_phone).exclude(
+                    id=getattr(self.instance, 'id', None)
+            ).exists():
+                raise serializers.ValidationError("This phone number is already in use.")
+
+            return normalized_phone
+        return value
+
+    def validate_email(self, value):
+        if value:
+            normalized_email = value.lower().strip()
+            if User.objects.filter(email=normalized_email).exclude(
+                    id=getattr(self.instance, 'id', None)
+            ).exists():
+                raise serializers.ValidationError("This email is already in use.")
+            return normalized_email
+        return value
 
 
 class LoginSerializer(serializers.Serializer):
