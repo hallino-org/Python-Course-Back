@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'django_filters',
     'rest_framework.authtoken',
     'learning.apps.LearningConfig',
+    'authentication',
 ]
 
 MIDDLEWARE = [
