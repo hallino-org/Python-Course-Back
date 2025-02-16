@@ -16,7 +16,7 @@ class RegisterSerializer(ModelSerializer):
         write_only=True, required=True, style={'input_type': 'password'})
 
     class Meta(UserBaseSerializer.Meta):
-        fields = UserBaseSerializer.Meta.fields + ['password']
+        fields = UserBaseSerializer.Meta.fields + ['password', 'confirm_password']
 
     def validate_email(self, value):
         if value:

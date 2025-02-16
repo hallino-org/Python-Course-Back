@@ -8,12 +8,12 @@ from learning.serializers import CategorySerializer, CourseSerializer
 from .models import User, Author, UserCourse, Streak, UserResponse, Staff
 
 
-
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'email', 'first_name', 'last_name',
-                  'phone', 'user_type', 'is_active', 'date_joined']
+        fields = ['id', 'email', 'firstname', 'lastname',
+                  'phone_number', 'is_active', 'created_at']
+
 
 class UserBaseSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(source='get_full_name', read_only=True)
@@ -26,7 +26,8 @@ class UserBaseSerializer(serializers.ModelSerializer):
             'is_active', 'is_confirmed', 'created_at', 'updated_at',
             'expire_date', 'full_name'
         ]
-        read_only_fields = ['is_active', 'is_confirmed', 'created_at', 'updated_at']
+        read_only_fields = ['is_active',
+                            'is_confirmed', 'created_at', 'updated_at']
 
     def validate_phone(self, value):
         if value:
@@ -37,7 +38,8 @@ class UserBaseSerializer(serializers.ModelSerializer):
             if User.objects.filter(phone=normalized_phone).exclude(
                     id=getattr(self.instance, 'id', None)
             ).exists():
-                raise serializers.ValidationError("This phone number is already in use.")
+                raise serializers.ValidationError(
+                    "This phone number is already in use.")
 
             return normalized_phone
         return value
@@ -48,17 +50,21 @@ class UserBaseSerializer(serializers.ModelSerializer):
             if User.objects.filter(email=normalized_email).exclude(
                     id=getattr(self.instance, 'id', None)
             ).exists():
-                raise serializers.ValidationError("This email is already in use.")
+                raise serializers.ValidationError(
+                    "This email is already in use.")
             return normalized_email
         return value
-    
-    
+
+
 class UserCreateSerializer(UserBaseSerializer):
-    password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
-    confirm_password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
+    password = serializers.CharField(write_only=True, required=True, style={
+                                     'input_type': 'password'})
+    confirm_password = serializers.CharField(
+        write_only=True, required=True, style={'input_type': 'password'})
 
     class Meta(UserBaseSerializer.Meta):
-        fields = UserBaseSerializer.Meta.fields + ['password', 'confirm_password']
+        fields = UserBaseSerializer.Meta.fields + \
+            ['password', 'confirm_password']
 
     def validate(self, data):
         if data.get('password') != data.get('confirm_password'):
@@ -125,7 +131,8 @@ class UserCourseSerializer(serializers.ModelSerializer):
 
     def validate_progress(self, value):
         if not 0 <= value <= 100:
-            raise serializers.ValidationError("Progress must be between 0 and 100")
+            raise serializers.ValidationError(
+                "Progress must be between 0 and 100")
         return value
 
 
