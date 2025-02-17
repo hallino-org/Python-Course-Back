@@ -17,3 +17,4 @@ PyYAML==6.0.2
 sqlparse==0.5.3
 uritemplate==4.1.1
 drf-nested-routers~=0.94.1
+django-jazzmin==3.0.1

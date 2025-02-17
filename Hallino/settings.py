@@ -12,7 +12,6 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 import os
 from pathlib import Path
 
-import dj_database_url
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -32,6 +31,7 @@ ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS').split(' ')
 # Application definition
 
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -62,8 +62,7 @@ ROOT_URLCONF = 'Hallino.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates']
-        ,
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -138,7 +137,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-MEDIA_URL = 'media/'  
+
+MEDIA_URL = 'media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 STATIC_URL = 'static/'
@@ -155,3 +155,20 @@ os.makedirs(BASE_DIR / 'static', exist_ok=True)
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+JAZZMIN_SETTINGS = {
+    "site_title": "Hallino Admin",
+    "site_header": "Hallino",
+    # "site_logo": "‍admin/Logo.png",
+    "welcome_sign": "Welcome to Hallino Admin",
+    "copyright": "Hallino Company Ltd",
+
+    "dark_mode_theme": "darkly",
+    "show_ui_builder": True,
+
+    "dark_mode_sidebar": True,
+    "navigation_expanded": True,
+
+    "theme": "darkly",
+    "dark_theme": "darkly",
+}
