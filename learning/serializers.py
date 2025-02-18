@@ -52,7 +52,7 @@ class BaseQuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = BaseQuestion
         fields = [
-            'id', 'title', 'description', 'question_type',
+            'id', 'title', 'question_body', 'question_type',
             'image', 'video_url', 'answer_description',
             'editor', 'is_text_input', 'choices',
             'correct_choices', 'created_at', 'updated_at'
