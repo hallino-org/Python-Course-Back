@@ -24,7 +24,7 @@ urlpatterns = [
         path('', include('learning.urls', namespace='learning')),
         path('user/', include('users.urls', namespace='users')),
     ])),
-    path('auth/', include('authentication.urls')),
+    path('api/v1/auth/', include('authentication.urls')),
     path('api-auth/', include('rest_framework.urls')),
     path('api/token/', obtain_auth_token, name='api_token_auth')
 ]
