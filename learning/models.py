@@ -72,7 +72,8 @@ class Course(models.Model):
     is_active = models.BooleanField(default=False)
 
     logo = models.URLField('logo URL', max_length=255, null=True, blank=True)
-    video_url = models.URLField('video URL', max_length=255, null=True, blank=True)
+    video_url = models.URLField(
+        'video URL', max_length=255, null=True, blank=True)
 
     requirements = models.ManyToManyField(
         'self',
@@ -140,7 +141,8 @@ class Chapter(models.Model):
     created_at = models.DateTimeField('created at', auto_now_add=True)
     updated_at = models.DateTimeField('updated at', auto_now=True)
     image = models.URLField('image URL', max_length=255, null=True, blank=True)
-    estimated_time = models.PositiveIntegerField(help_text='estimated in minutes')
+    estimated_time = models.PositiveIntegerField(
+        help_text='estimated in minutes')
     is_active = models.BooleanField('active', default=True)
 
     class Meta:
@@ -222,13 +224,15 @@ class Editor(models.Model):
 
 class BaseQuestion(models.Model):
     title = models.CharField('title', max_length=255)
-    description = models.TextField('description')
-    question_type = models.IntegerField(choices=LearningConstants.QUESTION_TYPE_CHOICES)
+    question_body = models.TextField('question_body', null=True, blank=True)
+    question_type = models.IntegerField(
+        choices=LearningConstants.QUESTION_TYPE_CHOICES)
     image = models.URLField(max_length=1024, null=True, blank=True)
     video_url = models.URLField(max_length=1024, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    answer_description = models.TextField(help_text='Detailed explanation of the answer')
+    answer_description = models.TextField(
+        help_text='Detailed explanation of the answer', null=True, blank=True)
     editor = models.ForeignKey(
         Editor,
         on_delete=models.CASCADE,
@@ -288,8 +292,8 @@ class Slide(models.Model):
         on_delete=models.CASCADE,
         related_name='slides'
     )
-    title = models.CharField(max_length=255)
-    content = models.TextField()
+    title = models.CharField(max_length=255, blank=True, null=True)
+    content = models.TextField(blank=True, null=True)
     total_marks = models.PositiveIntegerField(
         null=True,
         blank=True
