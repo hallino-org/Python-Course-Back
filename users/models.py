@@ -34,11 +34,12 @@ class UserManager(BaseUserManager):
         )
         user.is_staff = True
         user.is_confirmed = True
+        user.is_superuser = True
         user.save(using=self._db)
         return user
 
 
-class User(AbstractBaseUser):
+class User(AbstractBaseUser, PermissionsMixin):
     GENDER_CHOICES = [
         (1, 'female'),
         (2, 'male'),
