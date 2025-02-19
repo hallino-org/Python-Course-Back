@@ -39,7 +39,8 @@ class CategoryViewSet(viewsets.ModelViewSet):
 class CourseViewSet(viewsets.ModelViewSet):
     serializer_class = CourseSerializer
     permission_classes = [IsCourseAuthorOrReadOnly]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend,
+                       filters.SearchFilter, filters.OrderingFilter]
     filterset_class = CourseFilter
     search_fields = ['title', 'description', 'authors__username']
     ordering_fields = ['title', 'created_at', 'price', 'rating']
@@ -60,6 +61,7 @@ class CourseViewSet(viewsets.ModelViewSet):
         """
         queryset = self.get_queryset()
         lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        print(lookup_url_kwarg)
         lookup_value = self.kwargs[lookup_url_kwarg]
         typed_queryset = cast(Union[QuerySet[Course], type[Course]], queryset)
 
@@ -151,23 +153,26 @@ class CourseViewSet(viewsets.ModelViewSet):
 class ChapterViewSet(viewsets.ModelViewSet):
     serializer_class = ChapterSerializer
     permission_classes = [IsAuthorOrReadOnly]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend,
+                       filters.SearchFilter, filters.OrderingFilter]
     filterset_class = ChapterFilter
     search_fields = ['title', 'description']
     ordering_fields = ['order', 'created_at']
     ordering = ['order']
 
     def get_queryset(self):
-        course_pk = self.kwargs.get('course_pk')
-        if course_pk:
-            return Chapter.objects.filter(course__id=course_pk, is_active=True)
-
-        return Chapter.objects.filter(is_active=True)
+        course_pk = self.kwargs.get('course_slug')
+        try:
+            course_id = int(course_pk)
+            return Chapter.objects.filter(course__id=course_id, is_active=True)
+        except ValueError:
+            return Chapter.objects.filter(course__slug=course_pk, is_active=True)
 
     def perform_create(self, serializer):
         course = serializer.validated_data['course']
         if not serializer.validated_data.get('order'):
-            last_order = course.chapters.aggregate(models.Max('order'))['order__max']
+            last_order = course.chapters.aggregate(
+                models.Max('order'))['order__max']
             serializer.save(order=last_order + 1 if last_order else 1)
         else:
             serializer.save()
@@ -176,18 +181,15 @@ class ChapterViewSet(viewsets.ModelViewSet):
 class LessonViewSet(viewsets.ModelViewSet):
     serializer_class = LessonSerializer
     permission_classes = [IsAuthorOrReadOnly]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend,
+                       filters.SearchFilter, filters.OrderingFilter]
     filterset_class = LessonFilter
     search_fields = ['title', 'description']
     ordering_fields = ['order', 'created_at']
     ordering = ['order']
 
     def get_queryset(self):
-        chapter_pk = self.kwargs.get('chapter_pk')
-        if chapter_pk:
-            return Lesson.objects.filter(chapter__id=chapter_pk, is_active=True)
-
-        return Lesson.objects.filter(is_active=True)
+        return Lesson.objects.filter(chapter__id=self.kwargs.get('chapter_pk'), is_active=True)
 
     @action(detail=True, methods=['post'])
     def reorder_slides(self, request, pk=None):
@@ -222,18 +224,18 @@ class EditorViewSet(viewsets.ModelViewSet):
 class BaseQuestionViewSet(viewsets.ModelViewSet):
     serializer_class = BaseQuestionSerializer
     permission_classes = [IsStaffOrReadOnly]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend,
+                       filters.SearchFilter, filters.OrderingFilter]
     filterset_class = QuestionFilter
     search_fields = ['title', 'description']
     ordering_fields = ['created_at']
     ordering = ['-created_at']
 
     def get_queryset(self):
-        slide_pk = self.kwargs.get('slide_pk')
-        if slide_pk:
-            return BaseQuestion.objects.filter(questions_slides=slide_pk)
-
-        return BaseQuestion.objects.all()
+        question_id = self.kwargs.get('pk')
+        if question_id:
+            return BaseQuestion.objects.filter(id=question_id)
+        return BaseQuestion.objects.filter(questions_slides=self.kwargs.get('slide_pk'))
 
     @action(detail=True, methods=['post'])
     def add_choice(self, request, pk=None):
@@ -261,7 +263,8 @@ class ChoiceViewSet(viewsets.ModelViewSet):
 class SlideViewSet(viewsets.ModelViewSet):
     serializer_class = SlideSerializer
     permission_classes = [IsStaffOrReadOnly]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend,
+                       filters.SearchFilter, filters.OrderingFilter]
     filterset_class = SlideFilter
     search_fields = ['title', 'content']
     ordering_fields = ['order', 'created_at']
